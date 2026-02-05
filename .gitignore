@@ -1,0 +1,11 @@
+# deps
+node_modules/
+**/node_modules/
+
+# env
+.env
+.env.*
+
+# mac junk
+.DS_Store
+**/.DS_Store
