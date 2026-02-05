@@ -61,7 +61,7 @@ export default function ChatScreen() {
 
   const systemHeader = {
     id: "system-hello",
-    text: "Shantell: Keep it cute, keep it honest. You’re both here now.",
+    text: "Bently: Keep it cute, keep it honest. You’re both here now.",
     authorType: "system" as const,
     createdAt: 0
   };

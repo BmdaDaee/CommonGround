@@ -31,6 +31,9 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
 
+const { apiRateLimit } = require("./middleware/rateLimit");
+app.use(apiRateLimit);
+
 // Versioned API
 app.use("/v1", v1Routes);
 

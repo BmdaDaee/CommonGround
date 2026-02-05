@@ -37,7 +37,7 @@ const { askPersona, MODES } = require("./services/ai");
 
     const mode = MODES.CONFLICT;
 
-    console.log("Running Hyper-Responsive Shantell test...");
+    console.log("Running Hyper-Responsive Bently test...");
     console.log("Mode:", mode);
     console.log("User message:", userMessage);
 
