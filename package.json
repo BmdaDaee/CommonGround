@@ -1,0 +1,24 @@
+{
+  "name": "commonground-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web",
+    "apps/mobile",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace apps/web run dev",
+    "dev:api": "npm --workspace apps/api run start",
+    "dev:mobile": "npm --workspace apps/mobile run start",
+    "dev": "concurrently -n api,web \"npm run dev:api\" \"npm run dev:web\"",
+    "install:all": "npm install",
+    "lint": "npm --workspace apps/web run lint && npm --workspace apps/mobile run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  },
+  "dependencies": {
+    "firebase": "^12.8.0"
+  }
+}

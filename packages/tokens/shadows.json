@@ -1,0 +1,22 @@
+{
+  "soft": {
+    "shadowColor": "#000",
+    "shadowOpacity": 0.08,
+    "shadowRadius": 12,
+    "shadowOffset": {
+      "width": 0,
+      "height": 6
+    },
+    "elevation": 3
+  },
+  "glow": {
+    "shadowColor": "#8B0000",
+    "shadowOpacity": 0.45,
+    "shadowRadius": 20,
+    "shadowOffset": {
+      "width": 0,
+      "height": 0
+    },
+    "elevation": 6
+  }
+}
