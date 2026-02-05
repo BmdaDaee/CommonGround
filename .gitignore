@@ -9,3 +9,19 @@ node_modules/
 # mac junk
 .DS_Store
 **/.DS_Store
+
+# dependencies
+node_modules/
+**/node_modules/
+
+# expo / builds
+.expo/
+**/.expo/
+dist/
+build/
+
+# env + mac junk
+.env
+.env.*
+.DS_Store
+**/.DS_Store
