@@ -1,42 +1,75 @@
-// backend/services/voice.js
+// apps/api/services/voice.js
 const OpenAI = require("openai");
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+/**
+ * Voice is OPTIONAL.
+ * This file must NOT crash the API if OPENAI_API_KEY is missing.
+ * Repo uses CommonJS ("type":"commonjs"), so keep require/module.exports.
+ */
+const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
+const client = hasOpenAIKey ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 /**
- * Voice packs: "inspired" ones are allowed.
- * "custom" packs must be consentVerified=true or they are blocked.
+ * Voice packs:
+ * - "inspired" packs are allowed
+ * - "custom" packs must be consentVerified=true or they are blocked
+ *
+ * Backward compatibility:
+ * - Keep shantell_* ids as aliases so old configs don't break.
  */
 const VOICE_PACKS = {
-  shantell_inspired: {
-    id: "shantell_inspired",
-    label: "Shantell (Inspired)",
+  // Canonical Bently packs
+  bently_inspired: {
+    id: "bently_inspired",
+    label: "Bently (Inspired)",
     provider: "openai",
-    voice: "coral", // placeholder, swap later
+    voice: "coral", // placeholder voice
     model: "gpt-4o-mini-tts",
     consentVerified: true,
     lockedReason: null,
   },
 
-  // Example placeholder for future legit custom voice
-  shantell_custom_locked: {
-    id: "shantell_custom_locked",
-    label: "Custom Shantell (Locked)",
+  bently_custom_locked: {
+    id: "bently_custom_locked",
+    label: "Custom Bently (Locked)",
     provider: "custom",
     voice: null,
     model: null,
     consentVerified: false,
     lockedReason: "Custom voice is locked until consent/rights are verified.",
   },
+
+  // Backward-compatible aliases (old Shantell ids map to canonical Bently packs)
+  shantell_inspired: {
+    id: "bently_inspired",
+    label: "Bently (Inspired)",
+    provider: "openai",
+    voice: "coral",
+    model: "gpt-4o-mini-tts",
+    consentVerified: true,
+    lockedReason: null,
+    aliasOf: "bently_inspired",
+  },
+
+  shantell_custom_locked: {
+    id: "bently_custom_locked",
+    label: "Custom Bently (Locked)",
+    provider: "custom",
+    voice: null,
+    model: null,
+    consentVerified: false,
+    lockedReason: "Custom voice is locked until consent/rights are verified.",
+    aliasOf: "bently_custom_locked",
+  },
 };
 
 function getVoicePack(voicePackId) {
-  if (!voicePackId) return VOICE_PACKS.shantell_inspired;
-  return VOICE_PACKS[voicePackId] || VOICE_PACKS.shantell_inspired;
+  if (!voicePackId) return VOICE_PACKS.bently_inspired;
+  return VOICE_PACKS[voicePackId] || VOICE_PACKS.bently_inspired;
 }
 
 /**
- * Build speech delivery instructions that match Shantell’s vibe + toneMode.
+ * Build speech delivery instructions that match Bently’s vibe + toneMode.
  * Keep it short. Instructions help pacing/emphasis.
  */
 function buildDeliveryInstructions({ toneMode, delivery }) {
@@ -45,7 +78,6 @@ function buildDeliveryInstructions({ toneMode, delivery }) {
   const warmth = typeof d.warmth === "number" ? d.warmth : 0.5; // 0..1
   const edge = typeof d.edge === "number" ? d.edge : 0.7; // 0..1
 
-  // Tone-specific delivery guidance
   let toneLine = "";
   if (toneMode === "soft") {
     toneLine =
@@ -63,13 +95,11 @@ function buildDeliveryInstructions({ toneMode, delivery }) {
     toneLine = "Sound direct and human. Big-sister vibe.";
   }
 
-  // Pace guidance
   let paceLine = "";
   if (pace === "slow") paceLine = "Speak slower with more pauses.";
   else if (pace === "fast") paceLine = "Speak faster, tight and snappy.";
   else paceLine = "Speak at a natural conversational pace.";
 
-  // Warmth/edge guidance
   const warmthLine =
     warmth >= 0.65
       ? "Warmth is high."
@@ -88,7 +118,8 @@ function buildDeliveryInstructions({ toneMode, delivery }) {
 }
 
 /**
- * Convert text to base64 mp3. Blocks locked custom voices.
+ * Convert text to base64 mp3.
+ * Blocks locked custom voices.
  */
 async function textToSpeech(text, options = {}) {
   if (!text || typeof text !== "string") {
@@ -111,6 +142,13 @@ async function textToSpeech(text, options = {}) {
     throw err;
   }
 
+  // If OpenAI key isn't set, voice is unavailable (but API should still run).
+  if (!client) {
+    const err = new Error("OpenAI TTS unavailable (missing OPENAI_API_KEY).");
+    err.code = "OPENAI_KEY_MISSING";
+    throw err;
+  }
+
   const model = options.model || pack.model || "gpt-4o-mini-tts";
   const voice = options.voice || pack.voice || "coral";
 
@@ -120,13 +158,22 @@ async function textToSpeech(text, options = {}) {
   });
 
   // Some SDK versions accept "instructions" for delivery shaping.
-  // If your SDK complains, remove the instructions field.
-  const mp3 = await client.audio.speech.create({
-    model,
-    voice,
-    input: text,
-    instructions,
-  });
+  // We'll try with instructions first, and if it errors, retry without.
+  let mp3;
+  try {
+    mp3 = await client.audio.speech.create({
+      model,
+      voice,
+      input: text,
+      instructions,
+    });
+  } catch (e) {
+    mp3 = await client.audio.speech.create({
+      model,
+      voice,
+      input: text,
+    });
+  }
 
   const buffer = Buffer.from(await mp3.arrayBuffer());
   const base64 = buffer.toString("base64");
@@ -145,12 +192,19 @@ async function textToSpeech(text, options = {}) {
 }
 
 function listVoicePacks() {
-  return Object.values(VOICE_PACKS).map((p) => ({
-    id: p.id,
-    label: p.label,
-    consentVerified: !!p.consentVerified,
-    lockedReason: p.consentVerified ? null : p.lockedReason || "Locked",
-  }));
+  // Deduplicate by canonical id (aliases share the same id)
+  const byId = new Map();
+  for (const p of Object.values(VOICE_PACKS)) {
+    if (!byId.has(p.id)) {
+      byId.set(p.id, {
+        id: p.id,
+        label: p.label,
+        consentVerified: !!p.consentVerified,
+        lockedReason: p.consentVerified ? null : p.lockedReason || "Locked",
+      });
+    }
+  }
+  return Array.from(byId.values());
 }
 
 module.exports = { textToSpeech, listVoicePacks };
