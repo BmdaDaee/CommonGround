@@ -1,37 +1,69 @@
 # CommonGround Unified Monorepo
 
-This repo combines:
-- **apps/web**: Vite React web frontend
-- **apps/api**: Node/Express backend (persona + AI tools/tasks + voice)
-- **apps/mobile**: Expo Router mobile app (React Native)
+## Prerequisites
 
-## Quick start
+- Node.js `20.x` (matches CI in `.github/workflows/check.yml`)
+- npm `10+`
 
-### 1) Install
+## Monorepo Structure
+
+```text
+apps/
+  api/      Node + Express backend
+  mobile/   Expo Router React Native app
+  web/      Vite React web app
+packages/
+  tokens/   Shared design tokens
+  ui/       Shared UI components (@cg/ui)
+```
+
+## Workspace Command Matrix
+
+| Workspace | Dev | Lint | Test | Build | Typecheck |
+| --- | --- | --- | --- | --- | --- |
+| root | `npm run dev` | `npm run lint` | - | - | `npm run typecheck` |
+| `apps/web` | `npm --workspace apps/web run dev` | `npm --workspace apps/web run lint` | - | `npm --workspace apps/web run build` | - |
+| `apps/api` | `npm --workspace apps/api run dev` | - | `npm --workspace apps/api run test` | - | - |
+| `apps/mobile` | `npm --workspace apps/mobile run start` | `npm --workspace apps/mobile run lint` | - | - | `npm --workspace apps/mobile run typecheck` |
+| `packages/ui` | - | - | - | - | `npm --workspace @cg/ui run typecheck` |
+| `packages/tokens` | - | - | - | - | - |
+
+## Quick Start
+
+1. Install dependencies:
 ```bash
 npm install
 ```
 
-### 2) Configure backend secrets
-Copy the example env file and add your keys:
+2. Configure API env:
 ```bash
 cp apps/api/.env.example apps/api/.env
 ```
-If you use Firebase Admin, follow `apps/api/secrets/README.txt`.
 
-### 3) Run (web + api)
+3. Configure mobile env:
+```bash
+cp apps/mobile/.env.example apps/mobile/.env
+```
+
+4. Run web + API:
 ```bash
 npm run dev
 ```
 
-### 4) Run mobile (separate terminal)
+5. Run mobile in a separate terminal:
 ```bash
 npm run dev:mobile
 ```
 
-## Notes
-- AI keys must live **server-side** in `apps/api`.
-- The mobile app should call the API base URL you configure for your environment.
+## Phase 2 Quality Gates
+
+`npm run check` is the main repository gate and now runs:
+
+1. `npm run lint`
+2. `npm --workspace apps/web run build`
+3. `npm --workspace apps/api run test`
+
+CI (`.github/workflows/check.yml`) installs with `npm ci` and then executes `npm run check`.
 
 ---
 

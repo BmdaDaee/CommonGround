@@ -4,26 +4,31 @@ import toggleStates from "../../tokens/toggle-states.json";
 import radii from "../../tokens/radii.json";
 import shadows from "../../tokens/shadows.json";
 
+const colorTokens: any = colors;
+const toggleTokens: any = toggleStates;
+const radiiTokens: any = radii;
+const shadowTokens: any = shadows;
+
 export const commonGroundTheme = {
   name: "commonground" as const,
   colors: {
-    background: colors.commonground.background,
-    primary: colors.commonground.mintAqua,
-    secondary: colors.commonground.sunbeam,
-    chatSelf: colors.commonground.mintAqua,
-    chatOther: colors.commonground.blushPink,
-    chip: colors.commonground.paleMint,
-    textPrimary: colors.commonground.textPrimary,
-    textSecondary: colors.commonground.textSecondary
+    background: colorTokens.commonground.background,
+    primary: colorTokens.commonground.mintAqua,
+    secondary: colorTokens.commonground.sunbeam,
+    chatSelf: colorTokens.commonground.mintAqua,
+    chatOther: colorTokens.commonground.blushPink,
+    chip: colorTokens.commonground.paleMint,
+    textPrimary: colorTokens.commonground.textPrimary,
+    textSecondary: colorTokens.commonground.textSecondary
   },
   typography,
-  toggles: toggleStates.commonground,
+  toggles: toggleTokens.commonground,
   radii: {
-    card: radii.card,
-    button: radii.button,
-    bubble: radii.bubble
+    card: radiiTokens.card,
+    button: radiiTokens.button,
+    bubble: radiiTokens.bubble
   },
   shadows: {
-    soft: shadows.soft
+    soft: shadowTokens.soft
   }
 };

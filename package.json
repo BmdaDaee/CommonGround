@@ -14,7 +14,8 @@
     "dev": "concurrently -n api,web \"npm run dev:api\" \"npm run dev:web\"",
     "install:all": "npm install",
     "lint": "npm --workspace apps/web run lint && npm --workspace apps/mobile run lint",
-    "check": "npm run lint && npm --workspace apps/web run build"
+    "typecheck": "npm run --workspaces --if-present typecheck",
+    "check": "npm run lint && npm --workspace apps/web run build && npm --workspace apps/api run test"
   },
   "devDependencies": {
     "concurrently": "^9.0.0"

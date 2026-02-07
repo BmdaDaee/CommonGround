@@ -13,9 +13,9 @@ api.interceptors.request.use(async (config) => {
   if (user) {
     const token = await user.getIdToken();
     config.headers = {
-      ...config.headers,
+      ...(config.headers ?? {}),
       Authorization: `Bearer ${token}`,
-    };
+    } as any;
   }
   return config;
 });

@@ -1,5 +1,8 @@
 // backend/server.js
 require("dotenv").config();
+const { validateApiEnv } = require("./config/env");
+
+validateApiEnv();
 
 const express = require("express");
 const cors = require("cors");
