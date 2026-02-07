@@ -1,0 +1,5 @@
+{
+  "on": { "opacity": 1.0, "scale": 1.0 },
+  "off": { "opacity": 0.7, "scale": 0.98 },
+  "disabled": { "opacity": 0.4, "scale": 1.0 }
+}

@@ -1,0 +1,24 @@
+{
+  "commonground": {
+    "background": "#0B0F14",
+    "surface": "#121826",
+    "surface2": "#1A2333",
+    "text": "#E6EDF3",
+    "muted": "#9AA4B2",
+    "mintAqua": "#4CC9F0",
+    "sunbeam": "#F9C74F",
+    "danger": "#EF4444",
+    "border": "#273143"
+  },
+  "deeplyus": {
+    "background": "#0B0F14",
+    "surface": "#121826",
+    "surface2": "#1A2333",
+    "text": "#E6EDF3",
+    "muted": "#9AA4B2",
+    "garnet": "#8B1E3F",
+    "spinel": "#3A2E39",
+    "tourmaline": "#3DD6D0",
+    "border": "#273143"
+  }
+}
