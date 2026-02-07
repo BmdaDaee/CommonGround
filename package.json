@@ -13,7 +13,8 @@
     "dev:mobile": "npm --workspace apps/mobile run start",
     "dev": "concurrently -n api,web \"npm run dev:api\" \"npm run dev:web\"",
     "install:all": "npm install",
-    "lint": "npm --workspace apps/web run lint && npm --workspace apps/mobile run lint"
+    "lint": "npm --workspace apps/web run lint && npm --workspace apps/mobile run lint",
+    "check": "npm ci && npm run lint"
   },
   "devDependencies": {
     "concurrently": "^9.0.0"
