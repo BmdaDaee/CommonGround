@@ -1,24 +1,27 @@
 {
   "commonground": {
-    "background": "#0B0F14",
-    "surface": "#121826",
-    "surface2": "#1A2333",
-    "text": "#E6EDF3",
-    "muted": "#9AA4B2",
-    "mintAqua": "#4CC9F0",
-    "sunbeam": "#F9C74F",
-    "danger": "#EF4444",
-    "border": "#273143"
+    "backgroundLight": "#FFF4EC",
+    "backgroundAlt": "#FDE7EF",
+    "primaryAccent": "#FF6FAE",
+    "secondaryAccent": "#C9A7FF",
+    "highlight": "#A8F5D5",
+    "depth": "#6E4A7E",
+    "gradientStart": "#FFB7D5",
+    "gradientEnd": "#C7B7FF"
   },
   "deeplyus": {
-    "background": "#0B0F14",
-    "surface": "#121826",
-    "surface2": "#1A2333",
-    "text": "#E6EDF3",
-    "muted": "#9AA4B2",
-    "garnet": "#8B1E3F",
-    "spinel": "#3A2E39",
-    "tourmaline": "#3DD6D0",
-    "border": "#273143"
+    "backgroundDeep": "#2A1B3D",
+    "primaryAccent": "#FF8FAF",
+    "secondaryAccent": "#4A6CFF",
+    "highlight": "#F5C76B",
+    "depth": "#0D0A0F",
+    "gradientStart": "#3B1E5A",
+    "gradientEnd": "#FF6F8F"
+  },
+  "axm": {
+    "primaryDark": "#040403",
+    "primaryAccent": "#E2130D",
+    "secondaryAccent": "#6F42C1",
+    "neutralLight": "#EDEDED"
   }
 }

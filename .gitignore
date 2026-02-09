@@ -17,3 +17,5 @@ dist/
 build/
 apps/mobile/.env
 apps/api/secrets/
+
+apps/api/.env

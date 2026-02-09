@@ -1,5 +1,10 @@
 import { Stack } from "expo-router";
+import { AuthGate } from "../lib/authGate";
 
 export default function RootLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <AuthGate>
+      <Stack screenOptions={{ headerShown: false }} />
+    </AuthGate>
+  );
 }

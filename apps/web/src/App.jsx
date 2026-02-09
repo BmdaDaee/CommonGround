@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
+import RewriteSheet from "./components/chat/RewriteSheet";
 
 const DEFAULT_USER_ID = "test-user-1";
 const API_BASE = ""; // Vite proxy
@@ -164,6 +165,7 @@ export default function App() {
   const [message, setMessage] = useState("");
   const [useStream, setUseStream] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isRewriteOpen, setIsRewriteOpen] = useState(false);
 
   const [vibe, setVibe] = useState("realtalk");
 
@@ -380,6 +382,12 @@ export default function App() {
       if (!isSending) onSend();
     }
   };
+
+  const canRewrite = message.trim().length >= 12;
+
+  useEffect(() => {
+    if (!canRewrite && isRewriteOpen) setIsRewriteOpen(false);
+  }, [canRewrite, isRewriteOpen]);
 
   return (
     <div style={{ maxWidth: 920, margin: "0 auto", padding: 16 }}>
@@ -660,7 +668,7 @@ export default function App() {
       </div>
 
       {/* Composer */}
-      <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
+      <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "stretch" }}>
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -675,25 +683,51 @@ export default function App() {
             resize: "vertical",
           }}
         />
-        <button
-          onClick={onSend}
-          disabled={isSending || !message.trim()}
-          style={{
-            minWidth: 120,
-            borderRadius: 16,
-            border: "1px solid #ddd",
-            background: isSending ? "#f3f3f3" : "#fff",
-            fontWeight: 900,
-            cursor: isSending ? "not-allowed" : "pointer",
-          }}
-        >
-          {isSending ? "Sending..." : "Send"}
-        </button>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {canRewrite ? (
+            <button
+              onClick={() => setIsRewriteOpen(true)}
+              style={{
+                minWidth: 120,
+                borderRadius: 16,
+                border: "1px solid #ddd",
+                background: "#fff",
+                fontWeight: 900,
+                cursor: "pointer",
+                padding: "12px 10px",
+              }}
+            >
+              Rewrite
+            </button>
+          ) : null}
+
+          <button
+            onClick={onSend}
+            disabled={isSending || !message.trim()}
+            style={{
+              minWidth: 120,
+              borderRadius: 16,
+              border: "1px solid #ddd",
+              background: isSending ? "#f3f3f3" : "#fff",
+              fontWeight: 900,
+              cursor: isSending ? "not-allowed" : "pointer",
+            }}
+          >
+            {isSending ? "Sending..." : "Send"}
+          </button>
+        </div>
       </div>
 
       <div style={{ marginTop: 10, fontSize: 12, opacity: 0.75 }}>
         Enter sends. Shift+Enter makes a new line.
       </div>
+
+      <RewriteSheet
+        isOpen={isRewriteOpen}
+        draftText={message}
+        onClose={() => setIsRewriteOpen(false)}
+        onReplaceDraft={(nextText) => setMessage(nextText)}
+      />
         </>
       ) : (
         <div

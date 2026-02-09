@@ -310,6 +310,8 @@ if (typeof textToSpeech === "function") {
   });
 }
 
+app.use("/api/keystone", require("./routes/keystone/rewrite"));
+
 app.listen(PORT, () => {
   console.log(`[API] listening on http://localhost:${PORT}`);
   console.log(`[AI] OPENAI_API_KEY present: ${!!process.env.OPENAI_API_KEY}`);
