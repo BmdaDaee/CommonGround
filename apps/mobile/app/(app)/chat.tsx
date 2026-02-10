@@ -1,5 +1,7 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  AppState,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -29,6 +31,12 @@ type ChatMessage = {
   text: string;
 };
 
+type FailedSendPayload = {
+  pairId: string;
+  messageId: string;
+  text: string;
+};
+
 type PairOverview = {
   pairId: string | null;
   status: PairStatus | null;
@@ -55,7 +63,10 @@ const REWRITE_MODES: { label: string; mode: RewriteMode }[] = [
 
 const REWRITE_ERROR_MESSAGE = "Couldn’t rewrite that right now. Please try again.";
 const SEND_ERROR_MESSAGE = "Message failed to send.";
-const HISTORY_POLL_INTERVAL_MS = 2000;
+const HISTORY_PAGE_LIMIT = 30;
+const HISTORY_POLL_DELAY_SUCCESS_MS = 2000;
+const HISTORY_POLL_DELAY_FIRST_FAILURE_MS = 5000;
+const HISTORY_POLL_DELAY_REPEATED_FAILURE_MS = 10000;
 
 function makeId() {
   return Math.random().toString(36).slice(2);
@@ -250,10 +261,28 @@ function getLatestKnownTimestamp(messages: ChatMessage[]): number | null {
   return latest;
 }
 
+function getOldestKnownTimestamp(messages: ChatMessage[]): number | null {
+  let oldest: number | null = null;
+
+  for (const message of messages) {
+    const timestamp = normalizeEpochMs(message.createdAtMs);
+    if (timestamp === null) continue;
+    if (oldest === null || timestamp < oldest) oldest = timestamp;
+  }
+
+  return oldest;
+}
+
 function getNextOptimisticTimestamp(messages: ChatMessage[]) {
   const latest = getLatestKnownTimestamp(messages);
   if (latest === null) return Date.now();
   return latest + 1;
+}
+
+function getPollDelayMs(failureCount: number) {
+  if (failureCount <= 0) return HISTORY_POLL_DELAY_SUCCESS_MS;
+  if (failureCount === 1) return HISTORY_POLL_DELAY_FIRST_FAILURE_MS;
+  return HISTORY_POLL_DELAY_REPEATED_FAILURE_MS;
 }
 
 function mergeMessages(history: ChatMessage[], existing: ChatMessage[]) {
@@ -332,11 +361,23 @@ export default function ChatScreen() {
   const requestSeqRef = useRef(0);
   const sessionUidRef = useRef<string | null>(null);
   const historyPollInFlightRef = useRef(false);
+  const historyPollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const historyPollFailureCountRef = useRef(0);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [pairId, setPairId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [lastFailedSend, setLastFailedSend] = useState<FailedSendPayload | null>(null);
+
+  const [chatBootstrapLoading, setChatBootstrapLoading] = useState(true);
+  const [initialHistoryLoading, setInitialHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyRetryLoading, setHistoryRetryLoading] = useState(false);
+  const [historyLoadingEarlier, setHistoryLoadingEarlier] = useState(false);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
+  const [historyCursorBeforeMs, setHistoryCursorBeforeMs] = useState<number | null>(null);
+  const [isAppActive, setIsAppActive] = useState(AppState.currentState === "active");
 
   const [isRewriteOpen, setIsRewriteOpen] = useState(false);
   const [rewriteSourceText, setRewriteSourceText] = useState("");
@@ -356,17 +397,73 @@ export default function ChatScreen() {
   const canSend = useMemo(() => {
     return draft.trim().length > 0 && !isSending && !!pairId;
   }, [draft, isSending, pairId]);
+
   const canRewrite = useMemo(() => draft.trim().length >= 12, [draft]);
+
   const canReplaceDraft = useMemo(() => {
     return !rewriteLoading && !rewriteError && rewritePreview.trim().length > 0;
   }, [rewriteError, rewriteLoading, rewritePreview]);
+
   const canSubmitPairCode = useMemo(() => {
     return pairCodeDraft.trim().length >= 4 && !pairActionLoading;
   }, [pairActionLoading, pairCodeDraft]);
 
-  React.useEffect(() => {
+  const canRetryFailedSend = useMemo(() => {
+    return !!lastFailedSend && !isSending;
+  }, [lastFailedSend, isSending]);
+
+  function clearHistoryPollTimeout() {
+    if (!historyPollTimeoutRef.current) return;
+    clearTimeout(historyPollTimeoutRef.current);
+    historyPollTimeoutRef.current = null;
+  }
+
+  async function fetchHistoryPage(options: { beforeMs: number | null; trackPagination: boolean }) {
+    if (!pairId) return 0;
+
+    const params: { limit: number; before?: number } = { limit: HISTORY_PAGE_LIMIT };
+    if (options.beforeMs !== null) {
+      params.before = options.beforeMs;
+    }
+
+    const res = await api.get(`/v1/chat/${pairId}/list`, { params });
+    const history = normalizeHistoryMessages(res.data, sessionUidRef.current);
+
+    setMessages((prev) => mergeMessages(history, prev));
+
+    if (options.trackPagination) {
+      if (history.length === 0) {
+        setHasMoreHistory(false);
+        return 0;
+      }
+
+      const oldestFetchedTs = getOldestKnownTimestamp(history);
+      if (oldestFetchedTs === null) {
+        setHasMoreHistory(false);
+      } else {
+        setHistoryCursorBeforeMs(oldestFetchedTs);
+        setHasMoreHistory(history.length >= HISTORY_PAGE_LIMIT);
+      }
+    }
+
+    return history.length;
+  }
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      setIsAppActive(nextState === "active");
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
     let mounted = true;
+
     (async () => {
+      setChatBootstrapLoading(true);
       try {
         const session = await ensureSession();
         const uid = normalizeNonEmptyString(session?.uid);
@@ -387,47 +484,175 @@ export default function ChatScreen() {
           router.replace("/pair");
           return;
         }
+
         setPairId(resolvedPairId);
       } catch {
         if (mounted) router.replace("/pair");
+      } finally {
+        if (mounted) setChatBootstrapLoading(false);
       }
     })();
+
     return () => {
       mounted = false;
     };
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!pairId) return;
     let cancelled = false;
 
-    const fetchHistory = async () => {
+    setMessages([]);
+    setHistoryError(null);
+    setHistoryCursorBeforeMs(null);
+    setHasMoreHistory(true);
+    setInitialHistoryLoading(true);
+    historyPollFailureCountRef.current = 0;
+
+    const loadInitialHistory = async () => {
       if (historyPollInFlightRef.current) return;
       historyPollInFlightRef.current = true;
       try {
-        const res = await api.get(`/v1/chat/${pairId}/list`, { params: { limit: 30 } });
-        const history = normalizeHistoryMessages(res.data, sessionUidRef.current);
-        if (!cancelled) {
-          setMessages((prev) => mergeMessages(history, prev));
-        }
+        await fetchHistoryPage({ beforeMs: null, trackPagination: true });
       } catch {
-        // Keep chat usable even if initial history fetch fails.
+        if (!cancelled) {
+          setHistoryError("Couldn’t load recent messages.");
+        }
       } finally {
         historyPollInFlightRef.current = false;
+        if (!cancelled) setInitialHistoryLoading(false);
       }
     };
 
-    void fetchHistory();
-    const intervalHandle = setInterval(() => {
-      void fetchHistory();
-    }, HISTORY_POLL_INTERVAL_MS);
+    void loadInitialHistory();
 
     return () => {
       cancelled = true;
-      clearInterval(intervalHandle);
       historyPollInFlightRef.current = false;
     };
   }, [pairId]);
+
+  useEffect(() => {
+    if (!pairId || chatBootstrapLoading || initialHistoryLoading || !isAppActive) {
+      clearHistoryPollTimeout();
+      return;
+    }
+
+    let cancelled = false;
+
+    const scheduleNextPoll = (delayMs: number) => {
+      if (cancelled) return;
+      clearHistoryPollTimeout();
+      historyPollTimeoutRef.current = setTimeout(() => {
+        void pollHistory();
+      }, delayMs);
+    };
+
+    const pollHistory = async () => {
+      if (cancelled || !isAppActive) return;
+
+      if (historyPollInFlightRef.current) {
+        scheduleNextPoll(getPollDelayMs(historyPollFailureCountRef.current));
+        return;
+      }
+
+      historyPollInFlightRef.current = true;
+      try {
+        await fetchHistoryPage({ beforeMs: null, trackPagination: false });
+        historyPollFailureCountRef.current = 0;
+        setHistoryError(null);
+      } catch {
+        historyPollFailureCountRef.current += 1;
+        setHistoryError("Couldn’t refresh messages. Retrying…");
+      } finally {
+        historyPollInFlightRef.current = false;
+        if (!cancelled && isAppActive) {
+          scheduleNextPoll(getPollDelayMs(historyPollFailureCountRef.current));
+        }
+      }
+    };
+
+    scheduleNextPoll(getPollDelayMs(historyPollFailureCountRef.current));
+
+    return () => {
+      cancelled = true;
+      clearHistoryPollTimeout();
+    };
+  }, [pairId, chatBootstrapLoading, initialHistoryLoading, isAppActive]);
+
+  useEffect(() => {
+    return () => {
+      clearHistoryPollTimeout();
+      historyPollInFlightRef.current = false;
+    };
+  }, []);
+
+  async function sendMessageWithId(options: {
+    pairId: string;
+    messageId: string;
+    text: string;
+    addOptimisticUserMessage: boolean;
+  }) {
+    const { pairId: targetPairId, messageId, text, addOptimisticUserMessage } = options;
+
+    if (addOptimisticUserMessage) {
+      setMessages((prev) => {
+        const optimisticUserCreatedAt = getNextOptimisticTimestamp(prev);
+        return mergeMessages(
+          [{ id: messageId, role: "user", createdAtMs: optimisticUserCreatedAt, text }],
+          prev
+        );
+      });
+    }
+
+    setIsSending(true);
+
+    try {
+      const res = await api.post(`/v1/chat/${targetPairId}/send`, {
+        text,
+        messageId,
+        clientId: sessionUidRef.current,
+      });
+      const reply = typeof res.data?.reply === "string" ? res.data.reply.trim() : "";
+
+      if (reply) {
+        setMessages((prev) => {
+          const nextTimestamp = getNextOptimisticTimestamp(prev);
+          return mergeMessages(
+            [
+              {
+                id: `assistant_${messageId}`,
+                role: "assistant",
+                createdAtMs: nextTimestamp,
+                text: reply,
+              },
+            ],
+            prev
+          );
+        });
+      }
+
+      setLastFailedSend(null);
+    } catch {
+      setLastFailedSend({ pairId: targetPairId, messageId, text });
+      setMessages((prev) => {
+        const nextTimestamp = getNextOptimisticTimestamp(prev);
+        return mergeMessages(
+          [
+            {
+              id: `local-error-${makeId()}`,
+              role: "assistant",
+              createdAtMs: nextTimestamp,
+              text: SEND_ERROR_MESSAGE,
+            },
+          ],
+          prev
+        );
+      });
+    } finally {
+      setIsSending(false);
+    }
+  }
 
   async function onSend() {
     const text = draft.trim();
@@ -439,67 +664,65 @@ export default function ChatScreen() {
     }
 
     const messageId = makeId();
-    // optimistic user message
     setDraft("");
-    setMessages((prev) =>
-      {
-        const optimisticUserCreatedAt = getNextOptimisticTimestamp(prev);
-        return mergeMessages(
-          [{ id: messageId, role: "user", createdAtMs: optimisticUserCreatedAt, text }],
-          prev
-        );
-      }
-    );
-    setIsSending(true);
 
+    await sendMessageWithId({
+      pairId,
+      messageId,
+      text,
+      addOptimisticUserMessage: true,
+    });
+  }
+
+  async function onRetryFailedSend() {
+    if (!lastFailedSend || isSending) return;
+
+    await sendMessageWithId({
+      pairId: lastFailedSend.pairId,
+      messageId: lastFailedSend.messageId,
+      text: lastFailedSend.text,
+      addOptimisticUserMessage: false,
+    });
+  }
+
+  async function onRetryHistory() {
+    if (!pairId || historyRetryLoading) return;
+
+    setHistoryRetryLoading(true);
     try {
-      const res = await api.post(`/v1/chat/${pairId}/send`, {
-        text,
-        messageId,
-        clientId: sessionUidRef.current,
-      });
-      const reply = typeof res.data?.reply === "string" ? res.data.reply.trim() : "";
-
-      if (reply) {
-        setMessages((prev) =>
-          {
-            const nextTimestamp = getNextOptimisticTimestamp(prev);
-            return mergeMessages(
-              [
-                {
-                  id: `assistant_${messageId}`,
-                  role: "assistant",
-                  createdAtMs: nextTimestamp,
-                  text: reply,
-                },
-              ],
-              prev
-            );
-          }
-        );
-      }
+      await fetchHistoryPage({ beforeMs: null, trackPagination: false });
+      historyPollFailureCountRef.current = 0;
+      setHistoryError(null);
     } catch {
-      setMessages((prev) =>
-        {
-          const nextTimestamp = getNextOptimisticTimestamp(prev);
-          return mergeMessages(
-            [
-              {
-                id: `local-error-${makeId()}`,
-                role: "assistant",
-                createdAtMs: nextTimestamp,
-                text: SEND_ERROR_MESSAGE,
-              },
-            ],
-            prev
-          );
-        }
-      );
+      setHistoryError("Couldn’t refresh messages. Please try again.");
     } finally {
-      setIsSending(false);
+      setHistoryRetryLoading(false);
     }
   }
 
+  async function onLoadEarlierMessages() {
+    if (!pairId || historyLoadingEarlier || !hasMoreHistory) return;
+
+    const fallbackOldest = getOldestKnownTimestamp(messages);
+    const beforeMs = historyCursorBeforeMs ?? fallbackOldest;
+    if (beforeMs === null) {
+      setHasMoreHistory(false);
+      return;
+    }
+
+    setHistoryLoadingEarlier(true);
+    try {
+      const count = await fetchHistoryPage({ beforeMs, trackPagination: true });
+      if (count === 0) {
+        setHasMoreHistory(false);
+      }
+      setHistoryError(null);
+    } catch {
+      setHistoryError("Couldn’t load earlier messages.");
+    } finally {
+      setHistoryLoadingEarlier(false);
+    }
+  }
 
   function openRewrite() {
     if (!canRewrite) return;
@@ -649,6 +872,19 @@ export default function ChatScreen() {
   const pairCodeLabel = pairOverview.code ?? "No code available";
   const pairIdLabel = pairOverview.pairId ?? "Not paired";
 
+  const showBlockingLoader = chatBootstrapLoading || (!!pairId && initialHistoryLoading);
+
+  if (showBlockingLoader || !pairId) {
+    return (
+      <SafeAreaView style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#FFFFFF" }}>
+        <ActivityIndicator size="large" color="#111111" />
+        <Text style={{ marginTop: 12, color: "#374151", fontWeight: "600" }}>
+          Loading chat…
+        </Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       <KeyboardAvoidingView
@@ -696,6 +932,64 @@ export default function ChatScreen() {
               <Text style={{ color: "#171717", fontWeight: "700" }}>Sign Out</Text>
             </Pressable>
           </View>
+        </View>
+
+        <View style={{ paddingHorizontal: 16, paddingTop: 10, gap: 8 }}>
+          {historyError ? (
+            <View
+              style={{
+                borderRadius: 12,
+                backgroundColor: "#FEF2F2",
+                borderWidth: 1,
+                borderColor: "#FECACA",
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Text style={{ color: "#991B1B", fontWeight: "700", flex: 1, marginRight: 10 }}>
+                {historyError}
+              </Text>
+              <Pressable
+                onPress={onRetryHistory}
+                disabled={historyRetryLoading}
+                style={{
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: "#FCA5A5",
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  backgroundColor: historyRetryLoading ? "#FEE2E2" : "#FFFFFF",
+                }}
+              >
+                <Text style={{ color: "#991B1B", fontWeight: "800" }}>
+                  {historyRetryLoading ? "Retrying…" : "Retry"}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {hasMoreHistory ? (
+            <Pressable
+              onPress={onLoadEarlierMessages}
+              disabled={historyLoadingEarlier}
+              style={{
+                alignSelf: "center",
+                borderWidth: 1,
+                borderColor: "#D1D5DB",
+                borderRadius: 999,
+                paddingHorizontal: 14,
+                paddingVertical: 7,
+                backgroundColor: historyLoadingEarlier ? "#F3F4F6" : "#FFFFFF",
+              }}
+            >
+              <Text style={{ color: "#374151", fontWeight: "700" }}>
+                {historyLoadingEarlier ? "Loading earlier…" : "Load earlier messages"}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
 
         <FlatList
@@ -749,6 +1043,43 @@ export default function ChatScreen() {
             backgroundColor: "#FFFFFF",
           }}
         >
+          {lastFailedSend ? (
+            <View
+              style={{
+                marginBottom: 8,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: "#FCA5A5",
+                backgroundColor: "#FEF2F2",
+                paddingVertical: 8,
+                paddingHorizontal: 10,
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "#991B1B", fontWeight: "700", flex: 1, marginRight: 10 }}>
+                Last send failed.
+              </Text>
+              <Pressable
+                onPress={onRetryFailedSend}
+                disabled={!canRetryFailedSend}
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#FCA5A5",
+                  borderRadius: 999,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  backgroundColor: canRetryFailedSend ? "#FFFFFF" : "#FEE2E2",
+                }}
+              >
+                <Text style={{ color: "#991B1B", fontWeight: "800" }}>
+                  {isSending ? "Retrying…" : "Retry send"}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           <TextInput
             value={draft}
             onChangeText={setDraft}
