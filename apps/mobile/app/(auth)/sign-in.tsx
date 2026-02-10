@@ -1,88 +1,135 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { firebaseAuth } from '@/lib/firebase';
+
+import React, { useMemo, useState } from "react";
+import { router } from "expo-router";
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
+import { firebaseAuth } from "../../lib/firebase";
+import { commonGroundTheme as theme } from "@cg/ui";
 
 export default function SignInScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submit() {
+  const canSubmit = useMemo(() => {
+    return email.trim().length > 3 && password.length >= 6 && !loading;
+  }, [email, password, loading]);
+
+  async function onSubmit() {
     setError(null);
     setLoading(true);
     try {
       const e = email.trim();
-      if (!e || !password) throw new Error('Enter email + password');
-
-      if (mode === 'signUp') {
-        await createUserWithEmailAndPassword(firebaseAuth, e, password);
-      } else {
+      if (mode === "signin") {
         await signInWithEmailAndPassword(firebaseAuth, e, password);
+      } else {
+        await createUserWithEmailAndPassword(firebaseAuth, e, password);
       }
+
+      router.replace("/");
     } catch (err: any) {
-      setError(err?.message || 'Auth failed');
+      setError(err?.message || "Something went wrong.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>CommonGround</Text>
-      <Text style={styles.subtitle}>Phase 1: Foundation</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: theme.colors.background }}
+      behavior={Platform.select({ ios: "padding", android: undefined })}
+    >
+      <View style={{ flex: 1, justifyContent: "center", padding: (theme as any)?.spacing?.md ?? 16, gap: (theme as any)?.spacing?.sm ?? 10 }}>
+        <Text style={{ fontSize: 28, fontWeight: "800", textAlign: "center", color: (theme as any)?.colors?.textPrimary ?? "#1A1A1A" }}>
+          {mode === "signin" ? "Sign In" : "Create Account"}
+        </Text>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-          style={styles.input}
-          placeholder="you@domain.com"
-        />
+        <View style={{ gap: (theme as any)?.spacing?.sm ?? 10 }}>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            placeholder="Email"
+            placeholderTextColor="#9A8FA0"
+            style={{
+              borderWidth: 1,
+              borderColor: theme.colors.secondary,
+              backgroundColor: theme.colors.surface,
+              borderRadius: theme.radius.input,
+              padding: 12,
+              fontSize: 16,
+              color: (theme as any)?.colors?.textPrimary ?? "#1A1A1A",
+            }}
+          />
 
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-          style={styles.input}
-          placeholder="••••••••"
-        />
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholder="Password (min 6 chars)"
+            placeholderTextColor="#9A8FA0"
+            style={{
+              borderWidth: 1,
+              borderColor: theme.colors.secondary,
+              backgroundColor: theme.colors.surface,
+              borderRadius: theme.radius.input,
+              padding: 12,
+              fontSize: 16,
+              color: (theme as any)?.colors?.textPrimary ?? "#1A1A1A",
+            }}
+          />
+        </View>
 
-        {!!error && <Text style={styles.error}>{error}</Text>}
+        {!!error && (
+          <Text style={{ color: "#B00020", textAlign: "center" }}>
+            {error}
+          </Text>
+        )}
 
-        <Pressable onPress={submit} style={styles.primary} disabled={loading}>
-          {loading ? <ActivityIndicator /> : <Text style={styles.primaryText}>{mode === 'signUp' ? 'Create account' : 'Sign in'}</Text>}
+        <Pressable
+          onPress={onSubmit}
+          disabled={!canSubmit}
+          style={{
+            backgroundColor: canSubmit ? theme.colors.primary : "#CFC3D6",
+            padding: 14,
+            borderRadius: theme.radius.button,
+            alignItems: "center",
+          }}
+        >
+          {loading ? (
+            <ActivityIndicator />
+          ) : (
+            <Text style={{ color: (theme as any)?.colors?.textPrimary ?? "#1A1A1A", fontSize: 16, fontWeight: "800" }}>
+              {mode === "signin" ? "Sign In" : "Create Account"}
+            </Text>
+          )}
         </Pressable>
 
-        <Pressable onPress={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')} style={styles.link}>
-          <Text style={styles.linkText}>
-            {mode === 'signIn' ? "Need an account? Sign up" : 'Have an account? Sign in'}
+        <Pressable
+          onPress={() => setMode(mode === "signin" ? "signup" : "signin")}
+          style={{ padding: 10, alignItems: "center" }}
+        >
+          <Text style={{ textAlign: "center", color: theme.colors.depth, fontWeight: "600" }}>
+            {mode === "signin"
+              ? "Need an account? Create one"
+              : "Already have an account? Sign in"}
           </Text>
         </Pressable>
       </View>
-
-      <Text style={styles.footnote}>Use email/password for Phase 1. Social login can come later.</Text>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12 },
-  title: { fontSize: 32, fontWeight: '800' },
-  subtitle: { fontSize: 14, opacity: 0.75 },
-  card: { marginTop: 16, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#00000022', gap: 10 },
-  label: { fontSize: 12, opacity: 0.7 },
-  input: { borderWidth: 1, borderColor: '#00000022', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
-  error: { color: '#b00020' },
-  primary: { borderRadius: 14, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#00000022' },
-  primaryText: { fontSize: 16, fontWeight: '700' },
-  link: { paddingVertical: 8, alignItems: 'center' },
-  linkText: { textDecorationLine: 'underline' },
-  footnote: { marginTop: 16, fontSize: 12, opacity: 0.6 },
-});

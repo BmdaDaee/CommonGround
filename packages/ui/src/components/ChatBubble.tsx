@@ -17,7 +17,7 @@ export function ChatBubble({
   text: string;
   timestamp?: string;
 }) {
-  const theme = mode === "deeplyus" ? deeplyUsTheme : commonGroundTheme;
+  const theme: any = mode === "deeplyus" ? deeplyUsTheme : commonGroundTheme;
   const isSelf = author === "self";
   const isSystem = author === "system";
 
