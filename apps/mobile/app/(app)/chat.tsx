@@ -11,9 +11,11 @@ import {
   View,
 } from "react-native";
 import { signOut } from "firebase/auth";
+import { useRouter } from "expo-router";
 import { firebaseAuth } from "../../lib/firebase";
 import { api, ensureSession } from "../../lib/api";
 import { keystoneRewrite, type RewriteMode } from "../../lib/keystoneClient";
+import { getSessionPairId } from "../../lib/pairing";
 
 type ChatMessage = {
   id: string;
@@ -44,6 +46,7 @@ function extractRewriteOutput(result: { output: string } | string) {
 }
 
 export default function ChatScreen() {
+  const router = useRouter();
   const requestSeqRef = useRef(0);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -73,21 +76,21 @@ const [draft, setDraft] = useState("");
     (async () => {
       try {
         const session = await ensureSession();
-        console.log("[ensureSession]", JSON.stringify(session));
-        const pid =
-          (session as any)?.pairId ??
-          (session as any)?.user?.pairId ??
-          (session as any)?.user?.pair?.id ??
-          null;
-        if (mounted) setPairId(pid);
+        const pairId = getSessionPairId(session);
+        if (!mounted) return;
+        if (!pairId) {
+          router.replace("/(onboarding)/pair");
+          return;
+        }
+        setPairId(pairId);
       } catch {
-        // keep pairId null
+        if (mounted) router.replace("/(onboarding)/pair");
       }
     })();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [router]);
 
 async function onSend() {
     const text = draft.trim();

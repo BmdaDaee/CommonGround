@@ -34,7 +34,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   // Signed in: keep out of auth routes
   if (user && inAuthGroup) {
-    return <Redirect href="/(app)/chat" />;
+    return <Redirect href="/" />;
   }
 
   return <>{children}</>;
