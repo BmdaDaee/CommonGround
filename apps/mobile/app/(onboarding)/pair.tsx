@@ -45,7 +45,6 @@ export default function PairScreen() {
         const pairId = getSessionPairId(session);
         if (!mounted) return;
         if (pairId) {
-          router.replace("/(app)/chat");
           return;
         }
       } catch {
@@ -71,8 +70,7 @@ export default function PairScreen() {
     if (!pairId) {
       throw new Error("Pairing completed, but your session has no active pair yet. Please try once more.");
     }
-    router.replace("/(app)/chat");
-  }
+    }
 
   async function onCreatePair() {
     if (!canCreate) return;

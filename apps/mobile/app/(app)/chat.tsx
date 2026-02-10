@@ -31,6 +31,7 @@ const REWRITE_MODES: { label: string; mode: RewriteMode }[] = [
 ];
 
 const REWRITE_ERROR_MESSAGE = "Couldn’t rewrite that right now. Please try again.";
+const SEND_ERROR_MESSAGE = "Message failed to send. Please try again.";
 
 function makeId() {
   return Math.random().toString(36).slice(2);
@@ -45,14 +46,76 @@ function extractRewriteOutput(result: { output: string } | string) {
   return result.output;
 }
 
+type RawHistoryMessage = {
+  id?: unknown;
+  role?: unknown;
+  senderType?: unknown;
+  senderId?: unknown;
+  text?: unknown;
+};
+
+function normalizeNonEmptyString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function getHistoryMessageRole(
+  message: RawHistoryMessage,
+  sessionUid: string | null
+): "user" | "assistant" {
+  if (message.role === "user" || message.role === "assistant") return message.role;
+  if (message.senderType === "user") return "user";
+  if (message.senderType === "assistant" || message.senderType === "ai" || message.senderType === "partner") {
+    return "assistant";
+  }
+
+  const senderId = normalizeNonEmptyString(message.senderId);
+  if (senderId && sessionUid && senderId === sessionUid) return "user";
+
+  return "assistant";
+}
+
+function normalizeHistoryMessages(rawMessages: unknown, sessionUid: string | null): ChatMessage[] {
+  if (!Array.isArray(rawMessages)) return [];
+
+  const normalized = rawMessages.flatMap((raw, index) => {
+    if (!raw || typeof raw !== "object") return [];
+    const message = raw as RawHistoryMessage;
+    const text = normalizeNonEmptyString(message.text);
+    if (!text) return [];
+
+    const id = normalizeNonEmptyString(message.id) ?? `history-${index}-${makeId()}`;
+
+    return [
+      {
+        id,
+        role: getHistoryMessageRole(message, sessionUid),
+        text,
+      } satisfies ChatMessage,
+    ];
+  });
+
+  // API returns newest first; render oldest first so new sends append naturally.
+  return normalized.reverse();
+}
+
+function mergeMessages(history: ChatMessage[], existing: ChatMessage[]) {
+  if (existing.length === 0) return history;
+  const seen = new Set(history.map((message) => message.id));
+  const extras = existing.filter((message) => !seen.has(message.id));
+  return [...history, ...extras];
+}
+
 export default function ChatScreen() {
   const router = useRouter();
   const requestSeqRef = useRef(0);
+  const sessionUidRef = useRef<string | null>(null);
+  const loadedHistoryPairIdRef = useRef<string | null>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  
   const [pairId, setPairId] = useState<string | null>(null);
-const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState("");
   const [isSending, setIsSending] = useState(false);
 
   const [isRewriteOpen, setIsRewriteOpen] = useState(false);
@@ -63,26 +126,29 @@ const [draft, setDraft] = useState("");
   const [rewriteLoading, setRewriteLoading] = useState(false);
   const [rewriteCache, setRewriteCache] = useState<Record<string, string>>({});
 
-  const canSend = useMemo(() => draft.trim().length > 0 && !isSending, [draft, isSending]);
+  const canSend = useMemo(() => {
+    return draft.trim().length > 0 && !isSending && !!pairId;
+  }, [draft, isSending, pairId]);
   const canRewrite = useMemo(() => draft.trim().length >= 12, [draft]);
   const canReplaceDraft = useMemo(() => {
     return !rewriteLoading && !rewriteError && rewritePreview.trim().length > 0;
   }, [rewriteError, rewriteLoading, rewritePreview]);
-
-  
 
   React.useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         const session = await ensureSession();
-        const pairId = getSessionPairId(session);
+        const uid = normalizeNonEmptyString(session?.uid);
+        sessionUidRef.current = uid;
+
+        const resolvedPairId = getSessionPairId(session);
         if (!mounted) return;
-        if (!pairId) {
+        if (!resolvedPairId) {
           router.replace("/(onboarding)/pair");
           return;
         }
-        setPairId(pairId);
+        setPairId(resolvedPairId);
       } catch {
         if (mounted) router.replace("/(onboarding)/pair");
       }
@@ -92,32 +158,53 @@ const [draft, setDraft] = useState("");
     };
   }, [router]);
 
-async function onSend() {
+  React.useEffect(() => {
+    if (!pairId) return;
+    if (loadedHistoryPairIdRef.current === pairId) return;
+
+    loadedHistoryPairIdRef.current = pairId;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await api.get(`/v1/chat/${pairId}/list`, { params: { limit: 30 } });
+        const history = normalizeHistoryMessages(res.data?.messages, sessionUidRef.current);
+        if (!cancelled) {
+          setMessages((prev) => mergeMessages(history, prev));
+        }
+      } catch {
+        // Keep chat usable even if initial history fetch fails.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pairId]);
+
+  async function onSend() {
     const text = draft.trim();
     if (!text || isSending) return;
 
-    
-
     if (!pairId) {
-      setMessages((prev) => [
-        ...prev,
-        { id: makeId(), role: "assistant", text: "You're not paired yet, so chat can't send. Pair first." },
-      ]);
+      router.replace("/(onboarding)/pair");
       return;
     }
 
-setDraft("");
-    setMessages((prev) => [...prev, { id: makeId(), role: "user", text }]);
+    // optimistic user message
+    setDraft("");
+    const userId = makeId();
+    setMessages((prev) => [...prev, { id: userId, role: "user", text }]);
     setIsSending(true);
 
     try {
       const res = await api.post(`/v1/chat/${pairId}/send`, { text });
-      const reply = typeof res.data?.reply === "string" ? res.data.reply : "";
+      const reply = typeof res.data?.reply === "string" ? res.data.reply.trim() : "";
 
       if (reply) {
         setMessages((prev) => [...prev, { id: makeId(), role: "assistant", text: reply }]);
       }
-    } catch {
+    } catch (err) {
       setMessages((prev) => [
         ...prev,
         { id: makeId(), role: "assistant", text: "Message failed to send. Please try again." },
@@ -126,6 +213,7 @@ setDraft("");
       setIsSending(false);
     }
   }
+
 
   function openRewrite() {
     if (!canRewrite) return;

@@ -1,40 +1,67 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { Redirect, useSegments } from "expo-router";
+import { onAuthStateChanged } from "firebase/auth";
+import { router } from "expo-router";
 import { firebaseAuth } from "./firebase";
+import { ensureSession } from "./api";
+import { getSessionPairId } from "./pairing";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
-  const segments = useSegments();
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(firebaseAuth, (u) => {
-      setUser(u);
-      setReady(true);
+    let mounted = true;
+
+    const unsub = onAuthStateChanged(firebaseAuth, async (user) => {
+      console.log('[AuthGate] auth state changed. user=', !!user);
+      console.log('[AuthGate] auth state changed. user=', !!user);
+      if (!mounted) return;
+
+      if (!user) {
+        console.log('[AuthGate] setReady(true)');
+        console.log('[AuthGate] setReady(true)');
+        setReady(true);
+        router.replace("/(auth)/sign-in");
+        return;
+      }
+
+      try {
+        console.log('[AuthGate] calling ensureSession');
+        console.log('[AuthGate] calling ensureSession');
+        const session = await ensureSession();
+        console.log('[AuthGate] ensureSession ok');
+        console.log('[AuthGate] ensureSession ok');
+        const pairId = getSessionPairId(session);
+        console.log('[AuthGate] pairId=', pairId);
+        console.log('[AuthGate] pairId=', pairId);
+
+        setReady(true);
+
+        if (!pairId) {
+          router.replace("/(onboarding)/pair");
+        } else {
+          router.replace("/(app)/chat");
+        }
+      } catch (e) {
+        console.log('[AuthGate] ensureSession failed', (e as any)?.message, (e as any)?.response?.status, (e as any)?.response?.data);
+        console.log('[AuthGate] ensureSession failed', (e as any)?.message, (e as any)?.response?.status, (e as any)?.response?.data);
+        setReady(true);
+        router.replace("/(auth)/sign-in");
+      }
     });
-    return unsub;
+
+    return () => {
+      mounted = false;
+      unsub();
+    };
   }, []);
 
   if (!ready) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator />
       </View>
     );
-  }
-
-  const inAuthGroup = segments[0] === "(auth)";
-
-  // Signed out: force auth routes
-  if (!user && !inAuthGroup) {
-    return <Redirect href="/(auth)/sign-in" />;
-  }
-
-  // Signed in: keep out of auth routes
-  if (user && inAuthGroup) {
-    return <Redirect href="/" />;
   }
 
   return <>{children}</>;

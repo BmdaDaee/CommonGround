@@ -1,5 +1,6 @@
 
 import React, { useMemo, useState } from "react";
+import { router } from "expo-router";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -34,7 +35,11 @@ export default function SignInScreen() {
       const e = email.trim();
       if (mode === "signin") {
         await signInWithEmailAndPassword(firebaseAuth, e, password);
-      } else {
+      
+      
+      router.replace("/");
+router.replace("/");
+} else {
         await createUserWithEmailAndPassword(firebaseAuth, e, password);
       }
     } catch (err: any) {

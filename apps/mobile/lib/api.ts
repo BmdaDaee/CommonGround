@@ -1,7 +1,7 @@
-import axios from 'axios';
-import { firebaseAuth } from './firebase';
+import axios from "axios";
+import { firebaseAuth } from "./firebase";
 
-const baseURL = process.env.EXPO_PUBLIC_CG_API_BASE_URL || 'http://localhost:3001';
+const baseURL = process.env.EXPO_PUBLIC_CG_API_BASE_URL || "http://localhost:3001";
 
 export const api = axios.create({
   baseURL,
@@ -11,7 +11,7 @@ export const api = axios.create({
 api.interceptors.request.use(async (config) => {
   const user = firebaseAuth.currentUser;
   if (user) {
-    const token = await user.getIdToken();
+    const token = await user.getIdToken(true);
     config.headers = {
       ...(config.headers ?? {}),
       Authorization: `Bearer ${token}`,
@@ -21,6 +21,6 @@ api.interceptors.request.use(async (config) => {
 });
 
 export async function ensureSession() {
-  const res = await api.post('/v1/auth/session');
+  const res = await api.post("/v1/auth/session");
   return res.data as { uid: string; user: any };
 }
