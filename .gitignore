@@ -21,3 +21,11 @@ apps/api/secrets/
 apps/api/.env
 
 .DS_Store
+
+# ---- CommonGround local dev helpers ----
+USER_UID
+get_firebase_id_token*.sh
+dev-restart.sh
+
+# Mobile local helpers
+apps/mobile/get_firebase_id_token*.sh
