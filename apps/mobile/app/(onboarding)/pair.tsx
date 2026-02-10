@@ -14,6 +14,22 @@ type PairMeResponse = {
   } | null;
 };
 
+type PairRole = "a" | "b";
+
+type PairSnapshot = {
+  pairId: string | null;
+  status: "pending" | "active" | null;
+  code: string | null;
+  pairRole: PairRole | null;
+};
+
+const EMPTY_PAIR_SNAPSHOT: PairSnapshot = {
+  pairId: null,
+  status: null,
+  code: null,
+  pairRole: null,
+};
+
 const AUTO_CHAT_REDIRECT_DELAY_MS = 4000;
 
 function normalizeNonEmptyString(value: unknown): string | null {
@@ -32,8 +48,24 @@ function normalizePairStatus(value: unknown): "pending" | "active" | null {
   return value === "pending" || value === "active" ? value : null;
 }
 
+function normalizePairRole(value: unknown): PairRole | null {
+  return value === "a" || value === "b" ? value : null;
+}
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getPairingStateLabel(snapshot: PairSnapshot) {
+  if (!snapshot.pairId) return "Unpaired";
+  if (snapshot.status === "active") return "Paired (active)";
+  return "Paired (pending)";
+}
+
+function getRoleLabel(role: PairRole | null) {
+  if (role === "a") return "member A";
+  if (role === "b") return "member B";
+  return "unknown";
 }
 
 export default function PairScreen() {
@@ -43,15 +75,19 @@ export default function PairScreen() {
   const [joinLoading, setJoinLoading] = useState(false);
   const [recoveryLoading, setRecoveryLoading] = useState(false);
   const [leaveLoading, setLeaveLoading] = useState(false);
+  const [snapshotLoading, setSnapshotLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [joinSuccessMessage, setJoinSuccessMessage] = useState<string | null>(null);
   const joinRedirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [code, setCode] = useState("");
   const [createdCode, setCreatedCode] = useState<string | null>(null);
+  const [pairSnapshot, setPairSnapshot] = useState<PairSnapshot>(EMPTY_PAIR_SNAPSHOT);
   const autoRedirectSeconds = Math.round(AUTO_CHAT_REDIRECT_DELAY_MS / 1000);
 
-  const canJoin = useMemo(() => code.trim().length >= 4 && !joinLoading, [code, joinLoading]);
+  const isPaired = !!pairSnapshot.pairId;
+  const canJoin = useMemo(() => code.trim().length >= 4 && !joinLoading && !isPaired, [code, joinLoading, isPaired]);
+  const canCreate = !createLoading && !joinLoading && !recoveryLoading && !leaveLoading && !isPaired;
 
   useEffect(() => {
     return () => {
@@ -61,6 +97,37 @@ export default function PairScreen() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        const snapshot = await loadExistingPairSnapshot();
+        if (!mounted) return;
+        applySnapshot(snapshot);
+      } catch {
+        if (mounted) {
+          setError("Could not load your current pairing state. You can still create or join a pair.");
+        }
+      } finally {
+        if (mounted) setSnapshotLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  function applySnapshot(snapshot: PairSnapshot) {
+    setPairSnapshot(snapshot);
+    if (snapshot.code) {
+      setCreatedCode(snapshot.code);
+    } else if (!snapshot.pairId) {
+      setCreatedCode(null);
+    }
+  }
 
   function clearJoinRedirectTimer() {
     if (!joinRedirectTimerRef.current) return;
@@ -91,12 +158,20 @@ export default function PairScreen() {
 
     const sessionPairId = session ? getPairIdFromSession(session) : null;
     const sessionStatus = session ? getPairStatusFromSession(session) : null;
+    const sessionPairRole = normalizePairRole(
+      (session as { user?: { pairRole?: unknown } } | null)?.user?.pairRole
+    );
 
     const pairId = normalizeNonEmptyString(pair?.id) ?? sessionPairId;
     const status = normalizePairStatus(pair?.status) ?? sessionStatus;
-    const code = normalizeNonEmptyString(pair?.code);
+    const snapshotCode = normalizeNonEmptyString(pair?.code);
 
-    return { pairId, status, code };
+    return {
+      pairId,
+      status,
+      code: snapshotCode,
+      pairRole: sessionPairRole,
+    } satisfies PairSnapshot;
   }
 
   async function recoverExistingPair(options: { autoRouteWhenPaired?: boolean } = {}) {
@@ -106,25 +181,21 @@ export default function PairScreen() {
     setError(null);
     try {
       const snapshot = await loadExistingPairSnapshot();
-      if (snapshot.code) {
-        setCreatedCode(snapshot.code);
-      }
+      applySnapshot(snapshot);
 
       if (snapshot.pairId) {
         if (autoRouteWhenPaired) {
           router.replace("/chat");
+        } else if (snapshot.status === "active") {
+          setJoinSuccessMessage("You are paired and active. Open chat when ready.");
         } else {
-          if (snapshot.status === "active") {
-            setJoinSuccessMessage("You are paired and active. Opening chat when ready.");
-          } else {
-            setJoinSuccessMessage("You are paired. Opening chat when ready.");
-          }
+          setJoinSuccessMessage("You are paired. Open chat when ready.");
         }
         return true;
       }
 
       setJoinSuccessMessage(null);
-      setError("No existing pair was found. You can create a new pair.");
+      setError("No active pair found. Create a new pair code or join using your partner's code.");
       return false;
     } catch {
       setJoinSuccessMessage(null);
@@ -149,9 +220,9 @@ export default function PairScreen() {
     setJoinSuccessMessage(null);
     try {
       await api.post("/v1/pairs/leave", {});
-      setCreatedCode(null);
       setCode("");
-      setJoinSuccessMessage("Left current pair. You can create or join a new one.");
+      applySnapshot(EMPTY_PAIR_SNAPSHOT);
+      setJoinSuccessMessage("Left current pair. You can create or join a new pair.");
     } catch (e: any) {
       setError(e?.response?.data?.error || "Leave pair failed");
     } finally {
@@ -161,15 +232,15 @@ export default function PairScreen() {
 
   async function refreshAndRouteIfPaired(options: { routeToChat: boolean } = { routeToChat: true }) {
     const snapshot = await loadExistingPairSnapshot();
-    if (snapshot.code) {
-      setCreatedCode(snapshot.code);
-    }
+    applySnapshot(snapshot);
+
     if (snapshot.pairId) {
       if (options.routeToChat) {
         router.replace("/chat");
       }
       return true;
     }
+
     return false;
   }
 
@@ -185,20 +256,29 @@ export default function PairScreen() {
   }
 
   async function onCreatePair() {
-    if (createLoading) return;
+    if (createLoading || isPaired) return;
+
     clearJoinRedirectTimer();
     setJoinSuccessMessage(null);
     setError(null);
     setCreateLoading(true);
+
     try {
       const res = await api.post("/v1/pair/create", {});
       const data = res.data as CreateResponse;
       if (!data?.ok || !data?.code) throw new Error("create_failed");
+
       setCreatedCode(data.code);
+      setPairSnapshot((prev) => ({
+        pairId: normalizeNonEmptyString(data.pairId) || prev.pairId,
+        status: prev.status || "pending",
+        code: normalizeNonEmptyString(data.code),
+        pairRole: prev.pairRole || "a",
+      }));
       // Do NOT auto-route. Creator must be able to see the code.
     } catch (e: any) {
       if (normalizeApiErrorCode(e) === "user_already_paired") {
-        await recoverExistingPair();
+        await recoverExistingPair({ autoRouteWhenPaired: false });
       } else {
         setError(e?.response?.data?.error || "Create pair failed");
       }
@@ -208,11 +288,13 @@ export default function PairScreen() {
   }
 
   async function onJoinPair() {
-    if (!canJoin) return;
+    if (!canJoin || isPaired) return;
+
     clearJoinRedirectTimer();
     setJoinSuccessMessage(null);
     setError(null);
     setJoinLoading(true);
+
     try {
       const normalized = code.trim().toUpperCase();
       const res = await api.post("/v1/pair/join", { code: normalized });
@@ -231,7 +313,7 @@ export default function PairScreen() {
       clearJoinRedirectTimer();
       setJoinSuccessMessage(null);
       if (normalizeApiErrorCode(e) === "user_already_paired") {
-        await recoverExistingPair();
+        await recoverExistingPair({ autoRouteWhenPaired: false });
       } else {
         setError(e?.response?.data?.error || "Join pair failed");
       }
@@ -250,11 +332,15 @@ export default function PairScreen() {
     }
   }
 
+  const statusLabel = getPairingStateLabel(pairSnapshot);
+  const roleLabel = getRoleLabel(pairSnapshot.pairRole);
+  const codeLabel = pairSnapshot.code ?? createdCode ?? "No code available";
+
   return (
     <View style={{ flex: 1, padding: 20, gap: 14, justifyContent: "center" }}>
       <Text style={{ fontSize: 22, fontWeight: "800" }}>Pair Up</Text>
       <Text style={{ color: "#666" }}>
-        Create a pair to get a code, or join your partner using their code.
+        Create a pair code for your partner, or join with their code. If you are already paired, open chat directly.
       </Text>
 
       {error ? (
@@ -262,6 +348,28 @@ export default function PairScreen() {
           <Text style={{ color: "#991B1B", fontWeight: "700" }}>{error}</Text>
         </View>
       ) : null}
+
+      <View style={{ gap: 10, padding: 14, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 14, backgroundColor: "#F9FAFB" }}>
+        <Text style={{ fontSize: 16, fontWeight: "800" }}>Current pairing state</Text>
+        {snapshotLoading ? (
+          <Text style={{ color: "#666" }}>Checking current pairing state…</Text>
+        ) : (
+          <>
+            <Text style={{ color: "#111", fontWeight: "700" }}>Status: {statusLabel}</Text>
+            <Text style={{ color: "#374151" }}>Pair ID: {pairSnapshot.pairId || "Not paired"}</Text>
+            <Text style={{ color: "#374151" }}>Code: {codeLabel}</Text>
+            <Text style={{ color: "#374151" }}>You: {roleLabel}</Text>
+            {isPaired ? (
+              <Pressable
+                onPress={onOpenChatNow}
+                style={{ backgroundColor: "#111", paddingVertical: 10, borderRadius: 10, alignItems: "center", marginTop: 2 }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "800" }}>Open chat now</Text>
+              </Pressable>
+            ) : null}
+          </>
+        )}
+      </View>
 
       <View style={{ gap: 10, padding: 14, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 14 }}>
         <Text style={{ fontSize: 16, fontWeight: "800" }}>Create pair</Text>
@@ -287,16 +395,16 @@ export default function PairScreen() {
         ) : (
           <Pressable
             onPress={onCreatePair}
-            disabled={createLoading}
+            disabled={!canCreate}
             style={{
-              backgroundColor: createLoading ? "#D1D5DB" : "#111",
+              backgroundColor: canCreate ? "#111" : "#D1D5DB",
               paddingVertical: 12,
               borderRadius: 12,
               alignItems: "center",
             }}
           >
             <Text style={{ color: "#fff", fontWeight: "800" }}>
-              {createLoading ? "Creating…" : "Create pair"}
+              {createLoading ? "Creating…" : isPaired ? "Already paired" : "Create pair"}
             </Text>
           </Pressable>
         )}
@@ -314,6 +422,7 @@ export default function PairScreen() {
           }}
           placeholder="Enter code"
           autoCapitalize="characters"
+          editable={!isPaired && !joinLoading}
           style={{
             borderWidth: 1,
             borderColor: "#D1D5DB",
@@ -321,6 +430,7 @@ export default function PairScreen() {
             paddingHorizontal: 12,
             paddingVertical: 10,
             fontWeight: "700",
+            backgroundColor: isPaired ? "#F3F4F6" : "#fff",
           }}
         />
 
@@ -334,8 +444,14 @@ export default function PairScreen() {
             alignItems: "center",
           }}
         >
-          <Text style={{ color: "#fff", fontWeight: "800" }}>{joinLoading ? "Joining…" : "Join"}</Text>
+          <Text style={{ color: "#fff", fontWeight: "800" }}>{joinLoading ? "Joining…" : isPaired ? "Already paired" : "Join"}</Text>
         </Pressable>
+
+        {isPaired ? (
+          <Text style={{ color: "#6B7280" }}>
+            You are already paired. Leave your current pair to join another one.
+          </Text>
+        ) : null}
 
         {joinSuccessMessage ? (
           <View style={{ padding: 12, borderRadius: 12, backgroundColor: "#EFFCF8", gap: 10 }}>
@@ -363,7 +479,7 @@ export default function PairScreen() {
           }}
         >
           <Text style={{ color: "#fff", fontWeight: "800" }}>
-            {recoveryLoading ? "Checking…" : "Load existing pair"}
+            {recoveryLoading ? "Checking…" : "Refresh pairing state"}
           </Text>
         </Pressable>
 
