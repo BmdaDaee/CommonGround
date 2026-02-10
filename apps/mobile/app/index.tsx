@@ -1,11 +1,10 @@
 import React from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import { router } from "expo-router";
 import { ensureSession } from "../lib/api";
 import { getSessionPairId } from "../lib/pairing";
 
 export default function Index() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [attempt, setAttempt] = React.useState(0);
@@ -45,7 +44,7 @@ export default function Index() {
     return () => {
       mounted = false;
     };
-  }, [attempt, router]);
+  }, [attempt]);
 
   if (isLoading) {
     return (

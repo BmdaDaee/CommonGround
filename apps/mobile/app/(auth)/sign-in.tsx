@@ -35,13 +35,11 @@ export default function SignInScreen() {
       const e = email.trim();
       if (mode === "signin") {
         await signInWithEmailAndPassword(firebaseAuth, e, password);
-      
-      
-      router.replace("/");
-router.replace("/");
-} else {
+      } else {
         await createUserWithEmailAndPassword(firebaseAuth, e, password);
       }
+
+      router.replace("/");
     } catch (err: any) {
       setError(err?.message || "Something went wrong.");
     } finally {

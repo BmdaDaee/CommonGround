@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { signOut } from "firebase/auth";
-import { useRouter } from "expo-router";
+import { router } from "expo-router";
 import { firebaseAuth } from "../../lib/firebase";
 import { api, ensureSession } from "../../lib/api";
 import { keystoneRewrite, type RewriteMode } from "../../lib/keystoneClient";
@@ -108,7 +108,6 @@ function mergeMessages(history: ChatMessage[], existing: ChatMessage[]) {
 }
 
 export default function ChatScreen() {
-  const router = useRouter();
   const requestSeqRef = useRef(0);
   const sessionUidRef = useRef<string | null>(null);
   const loadedHistoryPairIdRef = useRef<string | null>(null);
@@ -156,7 +155,7 @@ export default function ChatScreen() {
     return () => {
       mounted = false;
     };
-  }, [router]);
+  }, []);
 
   React.useEffect(() => {
     if (!pairId) return;

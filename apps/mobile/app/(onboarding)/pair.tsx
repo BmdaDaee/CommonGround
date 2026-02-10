@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { router } from "expo-router";
 import { api, ensureSession } from "../../lib/api";
 import { getSessionPairId } from "../../lib/pairing";
 
@@ -30,7 +30,6 @@ function toFriendlyError(err: unknown, fallback: string) {
 }
 
 export default function PairScreen() {
-  const router = useRouter();
   const [busy, setBusy] = useState<BusyState>("bootstrap");
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [createdCode, setCreatedCode] = useState<string | null>(null);
@@ -45,6 +44,7 @@ export default function PairScreen() {
         const pairId = getSessionPairId(session);
         if (!mounted) return;
         if (pairId) {
+          router.replace("/(app)/chat");
           return;
         }
       } catch {
@@ -57,7 +57,7 @@ export default function PairScreen() {
     return () => {
       mounted = false;
     };
-  }, [router]);
+  }, []);
 
   const joinCode = useMemo(() => joinCodeInput.trim().toUpperCase(), [joinCodeInput]);
   const isBusy = busy !== null;
@@ -70,7 +70,8 @@ export default function PairScreen() {
     if (!pairId) {
       throw new Error("Pairing completed, but your session has no active pair yet. Please try once more.");
     }
-    }
+    router.replace("/(app)/chat");
+  }
 
   async function onCreatePair() {
     if (!canCreate) return;

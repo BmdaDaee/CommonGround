@@ -1,57 +1,71 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { onAuthStateChanged } from "firebase/auth";
-import { router } from "expo-router";
+import { router, useSegments } from "expo-router";
 import { firebaseAuth } from "./firebase";
 import { ensureSession } from "./api";
 import { getSessionPairId } from "./pairing";
 
+const AUTH_GATE_WATCHDOG_MS = 12000;
+type AuthRoute = "/(auth)/sign-in" | "/(onboarding)/pair" | "/(app)/chat";
+
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
+  const segments = useSegments();
+
+  const currentRoute = useMemo<AuthRoute | null>(() => {
+    const route = `/${segments.join("/")}`;
+    if (route === "/(auth)/sign-in") return route;
+    if (route === "/(onboarding)/pair") return route;
+    if (route === "/(app)/chat") return route;
+    return null;
+  }, [segments]);
+
+  const currentRouteRef = useRef<AuthRoute | null>(null);
+  currentRouteRef.current = currentRoute;
 
   useEffect(() => {
     let mounted = true;
+    let settled = false;
+
+    const finish = (route: AuthRoute) => {
+      if (!mounted || settled) return;
+      settled = true;
+      setReady(true);
+      if (currentRouteRef.current !== route) {
+        router.replace(route);
+      }
+    };
+
+    const watchdog = setTimeout(() => {
+      finish("/(auth)/sign-in");
+    }, AUTH_GATE_WATCHDOG_MS);
 
     const unsub = onAuthStateChanged(firebaseAuth, async (user) => {
-      console.log('[AuthGate] auth state changed. user=', !!user);
-      console.log('[AuthGate] auth state changed. user=', !!user);
       if (!mounted) return;
 
       if (!user) {
-        console.log('[AuthGate] setReady(true)');
-        console.log('[AuthGate] setReady(true)');
-        setReady(true);
-        router.replace("/(auth)/sign-in");
+        clearTimeout(watchdog);
+        finish("/(auth)/sign-in");
         return;
       }
 
       try {
-        console.log('[AuthGate] calling ensureSession');
-        console.log('[AuthGate] calling ensureSession');
         const session = await ensureSession();
-        console.log('[AuthGate] ensureSession ok');
-        console.log('[AuthGate] ensureSession ok');
         const pairId = getSessionPairId(session);
-        console.log('[AuthGate] pairId=', pairId);
-        console.log('[AuthGate] pairId=', pairId);
 
-        setReady(true);
-
-        if (!pairId) {
-          router.replace("/(onboarding)/pair");
-        } else {
-          router.replace("/(app)/chat");
-        }
-      } catch (e) {
-        console.log('[AuthGate] ensureSession failed', (e as any)?.message, (e as any)?.response?.status, (e as any)?.response?.data);
-        console.log('[AuthGate] ensureSession failed', (e as any)?.message, (e as any)?.response?.status, (e as any)?.response?.data);
-        setReady(true);
-        router.replace("/(auth)/sign-in");
+        clearTimeout(watchdog);
+        if (!pairId) finish("/(onboarding)/pair");
+        else finish("/(app)/chat");
+      } catch {
+        clearTimeout(watchdog);
+        finish("/(auth)/sign-in");
       }
     });
 
     return () => {
       mounted = false;
+      clearTimeout(watchdog);
       unsub();
     };
   }, []);
