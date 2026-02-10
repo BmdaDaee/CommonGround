@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -418,7 +418,7 @@ export default function ChatScreen() {
     historyPollTimeoutRef.current = null;
   }
 
-  async function fetchHistoryPage(options: { beforeMs: number | null; trackPagination: boolean }) {
+  const fetchHistoryPage = useCallback(async (options: { beforeMs: number | null; trackPagination: boolean }) => {
     if (!pairId) return 0;
 
     const params: { limit: number; before?: number } = { limit: HISTORY_PAGE_LIMIT };
@@ -447,7 +447,7 @@ export default function ChatScreen() {
     }
 
     return history.length;
-  }
+  }, [pairId]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
@@ -530,7 +530,7 @@ export default function ChatScreen() {
       cancelled = true;
       historyPollInFlightRef.current = false;
     };
-  }, [pairId]);
+  }, [fetchHistoryPage, pairId]);
 
   useEffect(() => {
     if (!pairId || chatBootstrapLoading || initialHistoryLoading || !isAppActive) {
@@ -578,7 +578,7 @@ export default function ChatScreen() {
       cancelled = true;
       clearHistoryPollTimeout();
     };
-  }, [pairId, chatBootstrapLoading, initialHistoryLoading, isAppActive]);
+  }, [chatBootstrapLoading, fetchHistoryPage, initialHistoryLoading, isAppActive, pairId]);
 
   useEffect(() => {
     return () => {
