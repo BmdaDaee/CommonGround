@@ -2,7 +2,7 @@
 
 const express = require("express");
 const { requireAuth } = require("../../middleware/requireAuth");
-const { ensureUserDoc, createPair, joinPair } = require("../../services/pairs");
+const { ensureUserDoc, createPair, joinPair, leaveActivePair } = require("../../services/pairs");
 
 const router = express.Router();
 
@@ -41,6 +41,22 @@ router.post("/join", async (req, res) => {
     console.error("JOIN PAIR ERROR:", err);
     const status = err.status || (err.message === "user_already_paired" ? 409 : 500);
     return res.status(status).json({ error: err.message || "join_pair_failed" });
+  }
+});
+
+/**
+ * POST /v1/pair/leave
+ * Leaves the caller's active pair.
+ */
+router.post("/leave", async (req, res) => {
+  try {
+    const { uid, token } = req.auth;
+    await ensureUserDoc(uid, token);
+    const result = await leaveActivePair(uid);
+    return res.json(result);
+  } catch (err) {
+    console.error("LEAVE PAIR ERROR:", err);
+    return res.status(err.status || 500).json({ error: err.message || "leave_pair_failed" });
   }
 });
 

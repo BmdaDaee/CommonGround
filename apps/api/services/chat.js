@@ -1,8 +1,11 @@
 // services/chat.js
 
 const crypto = require("crypto");
-const { db } = require("../config/firebaseAdmin");
-const { FieldValue, Timestamp } = require("firebase-admin/firestore");
+const { createMessageStore } = require("./chatMessageStore");
+const { createPairStore, getPairMemberIds } = require("./pairStore");
+
+const messageStore = createMessageStore();
+const pairStore = createPairStore();
 
 function generateMessageId() {
   if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -16,24 +19,7 @@ function normalizeString(value) {
 }
 
 function normalizePairMembers(pairData) {
-  const members = pairData?.members;
-  const unique = new Set();
-
-  if (Array.isArray(members)) {
-    for (const entry of members) {
-      const memberId = normalizeString(entry);
-      if (memberId) unique.add(memberId);
-    }
-    return Array.from(unique);
-  }
-  if (members && typeof members === "object") {
-    for (const entry of Object.keys(members)) {
-      const memberId = normalizeString(entry);
-      if (memberId) unique.add(memberId);
-    }
-    return Array.from(unique);
-  }
-  return [];
+  return getPairMemberIds(pairData);
 }
 
 function toMillis(value) {
@@ -88,30 +74,66 @@ function buildDeterministicReply(text) {
   return `Thanks for sharing. I heard: "${clipped}"`;
 }
 
-async function assertPairMember(pairId, uid) {
-  const pairRef = db.collection("pairs").doc(pairId);
-  const userRef = db.collection("users").doc(uid);
-  const [pairSnap, userSnap] = await Promise.all([pairRef.get(), userRef.get()]);
+function resolveAuthorForViewer(message, uid) {
+  const senderId = normalizeString(message?.senderId) || "";
+  const storedAuthor = normalizeString(message?.author);
 
-  if (!pairSnap.exists) {
+  if (storedAuthor === "assistant" || senderId === "assistant") return "assistant";
+  if (senderId && uid) return senderId === uid ? "self" : "partner";
+
+  if (storedAuthor === "self" || storedAuthor === "partner") return storedAuthor;
+  return "assistant";
+}
+
+function toClientMessage(message, uid) {
+  if (!message || typeof message !== "object") return null;
+
+  const text = normalizeString(message.text);
+  if (!text) return null;
+
+  const senderId = normalizeString(message.senderId);
+  const author = resolveAuthorForViewer(message, uid);
+  const role = author === "assistant" ? "assistant" : "user";
+  const senderType = author === "assistant"
+    ? "assistant"
+    : author === "self"
+      ? "self"
+      : senderId
+        ? "partner"
+        : "user";
+
+  return {
+    id: normalizeString(message.id) || generateMessageId(),
+    role,
+    author,
+    senderId,
+    senderType,
+    createdAtMs: toMillis(message.createdAtMs),
+    text,
+  };
+}
+
+async function assertPairMember(pairId, uid) {
+  const [pair, userData] = await Promise.all([pairStore.getPairById(pairId), pairStore.getUser(uid)]);
+
+  if (!pair) {
     throw asKnownError("pair_not_found", 404);
   }
 
-  const userData = userSnap.exists ? (userSnap.data() || {}) : {};
   const activePairId =
-    normalizeString(userData.activePairId) ||
-    normalizeString(userData.pairId) ||
-    normalizeString(userData.pair?.id);
+    normalizeString(userData?.activePairId) ||
+    normalizeString(userData?.pairId) ||
+    normalizeString(userData?.pair?.id);
   if (activePairId !== pairId) {
     throw asKnownError("forbidden", 403);
   }
 
-  const members = normalizePairMembers(pairSnap.data() || {});
+  const members = normalizePairMembers(pair);
   if (!members.includes(uid)) {
     throw asKnownError("forbidden", 403);
   }
 
-  return pairRef;
+  return pair;
 }
 
 /**
@@ -132,53 +154,27 @@ async function sendMessage({ pairId, messageId, clientId, senderId, text }) {
     throw asKnownError("text_too_long", 400);
   }
 
-  const pairRef = await assertPairMember(pairId, senderId);
+  await assertPairMember(pairId, senderId);
 
   const resolvedMessageId =
     typeof messageId === "string" && messageId.trim().length > 0 ? messageId.trim() : generateMessageId();
 
-  const userMessageRef = pairRef.collection("messages").doc(resolvedMessageId);
   const assistantMessageId = `assistant_${resolvedMessageId}`;
-  const assistantMessageRef = pairRef.collection("messages").doc(assistantMessageId);
   const reply = buildDeterministicReply(normalizedText);
   const nowMs = Date.now();
 
-  const resolvedReply = await db.runTransaction(async (tx) => {
-    const [existingUser, existingAssistant] = await Promise.all([
-      tx.get(userMessageRef),
-      tx.get(assistantMessageRef),
-    ]);
-
-    if (!existingUser.exists) {
-      tx.set(userMessageRef, {
-        id: resolvedMessageId,
-        role: "user",
-        clientId: clientId || null,
-        senderId,
-        text: normalizedText,
-        createdAtMs: nowMs,
-        createdAt: FieldValue.serverTimestamp(),
-        serverCreatedAt: FieldValue.serverTimestamp(),
-      });
-    }
-
-    if (!existingAssistant.exists) {
-      tx.set(assistantMessageRef, {
-        id: assistantMessageId,
-        role: "assistant",
-        senderId: "assistant",
-        text: reply,
-        createdAtMs: nowMs + 1,
-        createdAt: FieldValue.serverTimestamp(),
-        serverCreatedAt: FieldValue.serverTimestamp(),
-      });
-    }
-
-    tx.set(pairRef, { updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-
-    const existingReply = normalizeString(existingAssistant.data()?.text);
-    return existingReply || reply;
+  await messageStore.sendMessage(pairId, senderId, "self", normalizedText, {
+    id: resolvedMessageId,
+    clientId,
+    createdAtMs: nowMs,
   });
+
+  const assistantMessage = await messageStore.sendMessage(pairId, "assistant", "assistant", reply, {
+    id: assistantMessageId,
+    createdAtMs: nowMs + 1,
+  });
+
+  const resolvedReply = normalizeString(assistantMessage?.text) || reply;
 
   return { reply: resolvedReply };
 }
@@ -188,71 +184,17 @@ async function sendMessage({ pairId, messageId, clientId, senderId, text }) {
  * query: limit (default 30), before (serverCreatedAt millis)
  */
 async function listMessages({ pairId, uid, limit = 30, before = null }) {
-  const pairRef = await assertPairMember(pairId, uid);
+  await assertPairMember(pairId, uid);
 
   const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 30, 1), 100);
+  const parsedBefore = before === undefined || before === null ? null : toMillis(before);
 
-  let q = pairRef.collection("messages").orderBy("serverCreatedAt", "desc").limit(safeLimit);
+  const messages = await messageStore.listMessages(pairId, {
+    limit: safeLimit,
+    beforeMs: parsedBefore,
+  });
 
-  if (before) {
-    const beforeMs = parseInt(before, 10);
-    if (!Number.isNaN(beforeMs)) {
-      q = q.where("serverCreatedAt", "<", Timestamp.fromMillis(beforeMs));
-    }
-  }
-
-  const snap = await q.get();
-  const messages = snap.docs
-    .map((doc) => {
-      const data = doc.data() || {};
-      const text = normalizeString(data.text);
-      if (!text) return null;
-
-      const senderId = normalizeString(data.senderId);
-      const role = data.role === "user" || data.role === "assistant"
-        ? data.role
-        : senderId === uid
-          ? "user"
-          : "assistant";
-
-      const author = role === "assistant"
-        ? "assistant"
-        : senderId === uid
-          ? "self"
-          : "partner";
-
-      const senderType = role === "assistant"
-        ? "assistant"
-        : senderId === uid
-          ? "self"
-          : senderId
-            ? "partner"
-            : "user";
-
-      const createdAtMs =
-        toMillis(data.createdAtMs) ??
-        toMillis(data.serverCreatedAt) ??
-        toMillis(data.createdAt) ??
-        toMillis(data.sentAt) ??
-        toMillis(data.timestamp) ??
-        toMillis(data.time) ??
-        toMillis(doc.createTime) ??
-        toMillis(doc.updateTime) ??
-        null;
-
-      return {
-        id: doc.id,
-        role,
-        author,
-        senderId,
-        senderType,
-        createdAtMs,
-        text,
-      };
-    })
-    .filter(Boolean);
-
-  return messages;
+  return messages.map((message) => toClientMessage(message, uid)).filter(Boolean);
 }
 
 module.exports = {
