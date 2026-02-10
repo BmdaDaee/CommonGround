@@ -19,3 +19,5 @@ apps/mobile/.env
 apps/api/secrets/
 
 apps/api/.env
+
+.DS_Store
