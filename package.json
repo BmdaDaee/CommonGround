@@ -13,12 +13,21 @@
     "dev:mobile": "npm --workspace apps/mobile run start",
     "dev": "concurrently -n api,web \"npm run dev:api\" \"npm run dev:web\"",
     "install:all": "npm install",
-    "lint": "npm --workspace apps/web run lint && npm --workspace apps/mobile run lint"
+    "lint": "npm --workspace apps/web run lint && npm --workspace apps/mobile run lint",
+    "typecheck": "npm run --workspaces --if-present typecheck",
+    "check": "npm run lint && npm --workspace apps/web run build && npm --workspace apps/api run test",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "devDependencies": {
     "concurrently": "^9.0.0"
   },
   "dependencies": {
-    "firebase": "^12.8.0"
-  }
+    "@anarchyxmayhem/keystone-core": "file:../keystone-core",
+    "firebase": "^12.8.0",
+    "expo": "~54.0.33",
+    "react": "19.1.0",
+    "react-native": "0.81.5"
+  },
+  "version": "1.0.0"
 }

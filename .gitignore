@@ -1,4 +1,4 @@
-# deps
+# dependencies
 node_modules/
 **/node_modules/
 
@@ -9,3 +9,23 @@ node_modules/
 # mac junk
 .DS_Store
 **/.DS_Store
+
+# expo/build
+.expo/
+**/.expo/
+dist/
+build/
+apps/mobile/.env
+apps/api/secrets/
+
+apps/api/.env
+
+.DS_Store
+
+# ---- CommonGround local dev helpers ----
+USER_UID
+get_firebase_id_token*.sh
+dev-restart.sh
+
+# Mobile local helpers
+apps/mobile/get_firebase_id_token*.sh

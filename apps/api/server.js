@@ -1,5 +1,8 @@
 // backend/server.js
 require("dotenv").config();
+const { validateApiEnv } = require("./config/env");
+
+validateApiEnv();
 
 const express = require("express");
 const cors = require("cors");
@@ -30,6 +33,9 @@ try {
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
+
+const { apiRateLimit } = require("./middleware/rateLimit");
+app.use(apiRateLimit);
 
 // Versioned API
 app.use("/v1", v1Routes);
@@ -303,6 +309,8 @@ if (typeof textToSpeech === "function") {
     }
   });
 }
+
+app.use("/api/keystone", require("./routes/keystone/rewrite"));
 
 app.listen(PORT, () => {
   console.log(`[API] listening on http://localhost:${PORT}`);

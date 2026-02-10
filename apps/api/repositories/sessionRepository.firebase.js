@@ -1,9 +1,7 @@
 // backend/repositories/sessionRepository.firebase.js
-const admin = require("firebase-admin");
+const { getFirestoreDb } = require("../config/firestore");
 
-// Make sure firebase admin is initialized somewhere exactly once.
-// If you don't already do it elsewhere, create backend/config/firebaseAdmin.js and require it in server.js.
-const db = admin.firestore();
+const db = getFirestoreDb();
 const col = db.collection("sessions");
 
 async function getSession(userId) {
