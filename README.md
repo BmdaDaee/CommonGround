@@ -76,6 +76,7 @@ This phase ships the stuff that makes everything else possible:
 ```
 > ⚠️ Chat messages are NOT stored in Firestore.
 > Chat message persistence is handled by Supabase (dev-only).
+> Firestore now clearly = identity + pairing only.
 > See `docs/SUPABASE_PROOF.md` for the definitive proof artifact.
 
 ## API (Express) endpoints (Phase 1)
