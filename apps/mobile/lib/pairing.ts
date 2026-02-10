@@ -1,38 +1,41 @@
-type PairObject = {
-  id?: unknown;
-} | null;
+export type PairStatus = "pending" | "active";
 
-type UserLike = {
-  activePairId?: unknown;
-  pairId?: unknown;
-  pair?: PairObject;
-} | null | undefined;
+export type SessionShape = {
+  uid?: string;
+  pairId?: string | null;
+  user?: {
+    activePairId?: string | null;
+    pairId?: string | null;
+    pair?: { id?: string | null } | null;
+    pairRole?: "a" | "b" | null;
+  } & Record<string, any>;
+  pair?: { id: string; status?: PairStatus; membersCount?: number } | null;
+};
 
-type SessionLike = {
-  user?: UserLike;
-  pairId?: unknown;
-} | null | undefined;
-
-function normalizePairId(value: unknown): string | null {
+function normalizeNonEmptyString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
 
-export function getActivePairId(user: UserLike): string | null {
-  const pairId = user?.activePairId ?? user?.pairId ?? null;
-  return normalizePairId(pairId);
+export function getPairIdFromSession(session: any): string | null {
+  const s = session as SessionShape;
+  return (
+    normalizeNonEmptyString(s?.user?.activePairId) ||
+    normalizeNonEmptyString(s?.user?.pairId) ||
+    normalizeNonEmptyString(s?.pairId) ||
+    normalizeNonEmptyString(s?.user?.pair?.id) ||
+    normalizeNonEmptyString(s?.pair?.id) ||
+    null
+  );
 }
 
-export function getSessionPairId(session: SessionLike): string | null {
-  const activePairId = getActivePairId(session?.user);
-  if (activePairId) return activePairId;
+export function getPairStatusFromSession(session: any): PairStatus | null {
+  const s = session as SessionShape;
+  const st = s?.pair?.status;
+  return st === "pending" || st === "active" ? st : null;
+}
 
-  const topLevelPairId = normalizePairId(session?.pairId);
-  if (topLevelPairId) return topLevelPairId;
-
-  const nestedPairId = normalizePairId(session?.user?.pair?.id);
-  if (nestedPairId) return nestedPairId;
-
-  return null;
+export function getPairIdFromSessionUser(session: any): string | null {
+  return getPairIdFromSession(session);
 }

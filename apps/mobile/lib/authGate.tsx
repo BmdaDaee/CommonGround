@@ -1,74 +1,79 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { onAuthStateChanged } from "firebase/auth";
-import { router, useSegments } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import { firebaseAuth } from "./firebase";
 import { ensureSession } from "./api";
-import { getSessionPairId } from "./pairing";
+import { getPairIdFromSession } from "./pairing";
 
-const AUTH_GATE_WATCHDOG_MS = 12000;
-type AuthRoute = "/(auth)/sign-in" | "/(onboarding)/pair" | "/(app)/chat";
+type AppPath = "/sign-in" | "/pair" | "/chat";
+
+const SIGN_IN_PATH: AppPath = "/sign-in";
+const PAIR_PATH: AppPath = "/pair";
+const CHAT_PATH: AppPath = "/chat";
+
+function normalizePath(pathname: string | null | undefined) {
+  if (!pathname) return "/";
+  const trimmed = pathname.trim();
+  if (!trimmed || trimmed === "/") return "/";
+  return trimmed.replace(/\/+$/, "");
+}
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [ready, setReady] = useState(false);
-  const segments = useSegments();
 
-  const currentRoute = useMemo<AuthRoute | null>(() => {
-    const route = `/${segments.join("/")}`;
-    if (route === "/(auth)/sign-in") return route;
-    if (route === "/(onboarding)/pair") return route;
-    if (route === "/(app)/chat") return route;
-    return null;
-  }, [segments]);
+  const pathnameRef = useRef(normalizePath(pathname));
+  const authDecisionSeqRef = useRef(0);
 
-  const currentRouteRef = useRef<AuthRoute | null>(null);
-  currentRouteRef.current = currentRoute;
+  useEffect(() => {
+    pathnameRef.current = normalizePath(pathname);
+  }, [pathname]);
 
   useEffect(() => {
     let mounted = true;
-    let settled = false;
 
-    const finish = (route: AuthRoute) => {
-      if (!mounted || settled) return;
-      settled = true;
-      setReady(true);
-      if (currentRouteRef.current !== route) {
-        router.replace(route);
-      }
+    const replaceIfChanged = (target: AppPath) => {
+      const currentPath = pathnameRef.current;
+      const targetPath = normalizePath(target);
+      if (currentPath === targetPath) return;
+      router.replace(target);
     };
 
-    const watchdog = setTimeout(() => {
-      finish("/(auth)/sign-in");
-    }, AUTH_GATE_WATCHDOG_MS);
-
     const unsub = onAuthStateChanged(firebaseAuth, async (user) => {
+      const decisionSeq = ++authDecisionSeqRef.current;
       if (!mounted) return;
 
-      if (!user) {
-        clearTimeout(watchdog);
-        finish("/(auth)/sign-in");
-        return;
-      }
-
       try {
-        const session = await ensureSession();
-        const pairId = getSessionPairId(session);
+        if (!user) {
+          replaceIfChanged(SIGN_IN_PATH);
+          return;
+        }
 
-        clearTimeout(watchdog);
-        if (!pairId) finish("/(onboarding)/pair");
-        else finish("/(app)/chat");
+        const session = await ensureSession();
+        if (!mounted || authDecisionSeqRef.current !== decisionSeq) return;
+
+        const pairId = getPairIdFromSession(session);
+        if (!pairId) {
+          replaceIfChanged(PAIR_PATH);
+        } else {
+          replaceIfChanged(CHAT_PATH);
+        }
       } catch {
-        clearTimeout(watchdog);
-        finish("/(auth)/sign-in");
+        replaceIfChanged(SIGN_IN_PATH);
+      } finally {
+        if (mounted && authDecisionSeqRef.current === decisionSeq) {
+          setReady(true);
+        }
       }
     });
 
     return () => {
       mounted = false;
-      clearTimeout(watchdog);
       unsub();
     };
-  }, []);
+  }, [router]);
 
   if (!ready) {
     return (

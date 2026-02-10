@@ -1,11 +1,27 @@
+import { Platform } from "react-native";
+
 export type RewriteMode = "deescalate" | "soften" | "emotion_to_words" | "boundary_set";
 
-const DEFAULT_BASE_URL = "http://localhost:3001";
+function normalizeBaseUrl(value: string | undefined) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return trimmed.replace(/\/+$/, "");
+}
 
-// For physical devices, set EXPO_PUBLIC_API_BASE_URL to your LAN IP, e.g.
-// EXPO_PUBLIC_API_BASE_URL=http://192.168.1.156:3001
-const API_BASE_URL =
-  (process.env.EXPO_PUBLIC_API_BASE_URL as string | undefined) ?? DEFAULT_BASE_URL;
+function resolveKeystoneBaseUrl() {
+  const envBaseUrl =
+    normalizeBaseUrl(process.env.EXPO_PUBLIC_CG_API_BASE_URL as string | undefined) ||
+    normalizeBaseUrl(process.env.EXPO_PUBLIC_API_BASE_URL as string | undefined);
+  if (envBaseUrl) return envBaseUrl;
+
+  if (Platform.OS === "android") {
+    return "http://10.0.2.2:3001";
+  }
+  return "http://localhost:3001";
+}
+
+const API_BASE_URL = resolveKeystoneBaseUrl();
 
 export async function keystoneRewrite(
   text: string,

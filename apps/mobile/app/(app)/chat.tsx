@@ -15,12 +15,35 @@ import { router } from "expo-router";
 import { firebaseAuth } from "../../lib/firebase";
 import { api, ensureSession } from "../../lib/api";
 import { keystoneRewrite, type RewriteMode } from "../../lib/keystoneClient";
-import { getSessionPairId } from "../../lib/pairing";
+import {
+  getPairIdFromSession,
+  getPairIdFromSessionUser,
+  getPairStatusFromSession,
+  type PairStatus,
+} from "../../lib/pairing";
 
 type ChatMessage = {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "partner" | "assistant";
+  createdAtMs: number | null;
   text: string;
+};
+
+type PairOverview = {
+  pairId: string | null;
+  status: PairStatus | null;
+  code: string | null;
+  membersCount: number | null;
+};
+
+type PairApiResponse = {
+  pair?: {
+    id?: unknown;
+    status?: unknown;
+    code?: unknown;
+    members?: unknown;
+    membersCount?: unknown;
+  } | null;
 };
 
 const REWRITE_MODES: { label: string; mode: RewriteMode }[] = [
@@ -31,7 +54,8 @@ const REWRITE_MODES: { label: string; mode: RewriteMode }[] = [
 ];
 
 const REWRITE_ERROR_MESSAGE = "Couldn’t rewrite that right now. Please try again.";
-const SEND_ERROR_MESSAGE = "Message failed to send. Please try again.";
+const SEND_ERROR_MESSAGE = "Message failed to send.";
+const HISTORY_POLL_INTERVAL_MS = 2000;
 
 function makeId() {
   return Math.random().toString(36).slice(2);
@@ -48,9 +72,16 @@ function extractRewriteOutput(result: { output: string } | string) {
 
 type RawHistoryMessage = {
   id?: unknown;
+  author?: unknown;
   role?: unknown;
   senderType?: unknown;
   senderId?: unknown;
+  createdAtMs?: unknown;
+  createdAt?: unknown;
+  serverCreatedAt?: unknown;
+  sentAt?: unknown;
+  timestamp?: unknown;
+  time?: unknown;
   text?: unknown;
 };
 
@@ -60,57 +91,247 @@ function normalizeNonEmptyString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function normalizeEpochNumber(value: number): number | null {
+  if (!Number.isFinite(value)) return null;
+  const abs = Math.abs(value);
+
+  if (abs >= 1e17) return Math.trunc(value / 1e6); // nanoseconds -> milliseconds
+  if (abs >= 1e14) return Math.trunc(value / 1e3); // microseconds -> milliseconds
+  if (abs < 1e11) return Math.trunc(value * 1e3); // seconds -> milliseconds
+  return Math.trunc(value); // already milliseconds
+}
+
+function toMillis(value: unknown): number | null {
+  if (typeof value === "number") {
+    return normalizeEpochNumber(value);
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+      const numeric = Number(trimmed);
+      return normalizeEpochNumber(numeric);
+    }
+
+    const parsed = Date.parse(trimmed);
+    return Number.isNaN(parsed) ? null : normalizeEpochNumber(parsed);
+  }
+  if (!value || typeof value !== "object") return null;
+
+  const possibleToMillis = (value as { toMillis?: unknown }).toMillis;
+  if (typeof possibleToMillis === "function") {
+    try {
+      const output = (possibleToMillis as () => number).call(value);
+      return normalizeEpochNumber(output);
+    } catch {
+      // fall through
+    }
+  }
+
+  const seconds = Number(
+    (value as { seconds?: unknown; _seconds?: unknown }).seconds ??
+      (value as { seconds?: unknown; _seconds?: unknown })._seconds
+  );
+  if (Number.isFinite(seconds)) {
+    const nanos = Number(
+      (value as { nanoseconds?: unknown; _nanoseconds?: unknown }).nanoseconds ??
+        (value as { nanoseconds?: unknown; _nanoseconds?: unknown })._nanoseconds ??
+        0
+    );
+    const millisFromNanos = Number.isFinite(nanos) ? Math.floor(nanos / 1e6) : 0;
+    return normalizeEpochNumber(seconds * 1000 + millisFromNanos);
+  }
+
+  return null;
+}
+
+function normalizeEpochMs(value: unknown): number | null {
+  const parsed = toMillis(value);
+  if (parsed === null || !Number.isFinite(parsed)) return null;
+  return parsed;
+}
+
+function formatMessageDateTime(createdAtMs: number | null) {
+  if (createdAtMs === null || !Number.isFinite(createdAtMs)) return "Date unavailable";
+  const date = new Date(createdAtMs);
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
+
+  return date.toLocaleString([], {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function getHistoryMessageRole(
   message: RawHistoryMessage,
   sessionUid: string | null
-): "user" | "assistant" {
-  if (message.role === "user" || message.role === "assistant") return message.role;
-  if (message.senderType === "user") return "user";
-  if (message.senderType === "assistant" || message.senderType === "ai" || message.senderType === "partner") {
-    return "assistant";
-  }
+): "user" | "partner" | "assistant" {
+  const author = normalizeNonEmptyString(message.author);
+  if (author === "assistant" || author === "ai") return "assistant";
+  if (author === "self" || author === "you") return "user";
+  if (author === "partner") return "partner";
 
   const senderId = normalizeNonEmptyString(message.senderId);
-  if (senderId && sessionUid && senderId === sessionUid) return "user";
+  if (senderId && sessionUid) {
+    return senderId === sessionUid ? "user" : "partner";
+  }
+
+  const senderType = normalizeNonEmptyString(message.senderType);
+  if (senderType === "assistant" || senderType === "ai") return "assistant";
+  if (senderType === "partner") return "partner";
+  if (senderType === "self" || senderType === "user") return "user";
+
+  if (message.role === "assistant") return "assistant";
+  if (message.role === "user") return sessionUid ? "user" : "partner";
 
   return "assistant";
 }
 
-function normalizeHistoryMessages(rawMessages: unknown, sessionUid: string | null): ChatMessage[] {
-  if (!Array.isArray(rawMessages)) return [];
+function normalizeHistoryMessages(rawHistory: unknown, sessionUid: string | null): ChatMessage[] {
+  const rawMessages = Array.isArray(rawHistory)
+    ? rawHistory
+    : rawHistory && typeof rawHistory === "object" && Array.isArray((rawHistory as { messages?: unknown }).messages)
+      ? (rawHistory as { messages: unknown[] }).messages
+      : [];
 
-  const normalized = rawMessages.flatMap((raw, index) => {
+  const normalizedWithSourceIndex = rawMessages.flatMap((raw, index) => {
     if (!raw || typeof raw !== "object") return [];
     const message = raw as RawHistoryMessage;
     const text = normalizeNonEmptyString(message.text);
     if (!text) return [];
 
     const id = normalizeNonEmptyString(message.id) ?? `history-${index}-${makeId()}`;
+    const createdAtMs =
+      normalizeEpochMs(message.createdAtMs) ??
+      normalizeEpochMs(message.serverCreatedAt) ??
+      normalizeEpochMs(message.createdAt) ??
+      normalizeEpochMs(message.sentAt) ??
+      normalizeEpochMs(message.timestamp) ??
+      normalizeEpochMs(message.time) ??
+      null;
 
-    return [
-      {
+    return [{
+      sourceIndex: index,
+      message: {
         id,
         role: getHistoryMessageRole(message, sessionUid),
+        createdAtMs,
         text,
       } satisfies ChatMessage,
-    ];
+    }];
   });
 
-  // API returns newest first; render oldest first so new sends append naturally.
-  return normalized.reverse();
+  normalizedWithSourceIndex.sort((a, b) => {
+    const aTs = normalizeEpochMs(a.message.createdAtMs);
+    const bTs = normalizeEpochMs(b.message.createdAtMs);
+    if (aTs !== null && bTs !== null && aTs !== bTs) return aTs - bTs;
+    if (aTs === null && bTs !== null) return 1;
+    if (aTs !== null && bTs === null) return -1;
+    // API history is newest-first; invert source order to render oldest-first for equal timestamps.
+    return b.sourceIndex - a.sourceIndex;
+  });
+
+  return normalizedWithSourceIndex.map((entry) => entry.message);
+}
+
+function getLatestKnownTimestamp(messages: ChatMessage[]): number | null {
+  let latest: number | null = null;
+
+  for (const message of messages) {
+    const timestamp = normalizeEpochMs(message.createdAtMs);
+    if (timestamp === null) continue;
+    if (latest === null || timestamp > latest) latest = timestamp;
+  }
+
+  return latest;
+}
+
+function getNextOptimisticTimestamp(messages: ChatMessage[]) {
+  const latest = getLatestKnownTimestamp(messages);
+  if (latest === null) return Date.now();
+  return latest + 1;
 }
 
 function mergeMessages(history: ChatMessage[], existing: ChatMessage[]) {
-  if (existing.length === 0) return history;
-  const seen = new Set(history.map((message) => message.id));
-  const extras = existing.filter((message) => !seen.has(message.id));
-  return [...history, ...extras];
+  const byId = new Map<string, ChatMessage>();
+  const orderHint = new Map<string, number>();
+
+  for (const [index, message] of existing.entries()) {
+    byId.set(message.id, message);
+    orderHint.set(message.id, index);
+  }
+
+  const historyBaseOrder = existing.length;
+
+  for (const [index, message] of history.entries()) {
+    if (!orderHint.has(message.id)) {
+      orderHint.set(message.id, historyBaseOrder + index);
+    }
+
+    const previous = byId.get(message.id);
+    if (!previous) {
+      byId.set(message.id, message);
+      continue;
+    }
+
+    byId.set(message.id, {
+      ...previous,
+      ...message,
+      createdAtMs:
+        normalizeEpochMs(message.createdAtMs) ?? normalizeEpochMs(previous.createdAtMs) ?? null,
+    });
+  }
+
+  return Array.from(byId.values()).sort((a, b) => {
+    const aTs = normalizeEpochMs(a.createdAtMs);
+    const bTs = normalizeEpochMs(b.createdAtMs);
+
+    if (aTs !== null && bTs !== null && aTs !== bTs) return aTs - bTs;
+    if (aTs === null && bTs !== null) return 1;
+    if (aTs !== null && bTs === null) return -1;
+
+    const aOrder = orderHint.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+    const bOrder = orderHint.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+
+    return a.id.localeCompare(b.id);
+  });
 }
+
+function normalizePairStatus(value: unknown): PairStatus | null {
+  return value === "pending" || value === "active" ? value : null;
+}
+
+function getPairMembersCount(pair: PairApiResponse["pair"]) {
+  if (!pair) return null;
+
+  if (typeof pair.membersCount === "number" && Number.isFinite(pair.membersCount)) {
+    return pair.membersCount;
+  }
+  if (Array.isArray(pair.members)) {
+    return pair.members.length;
+  }
+  if (pair.members && typeof pair.members === "object") {
+    return Object.keys(pair.members as Record<string, unknown>).length;
+  }
+  return null;
+}
+
+const EMPTY_PAIR_OVERVIEW: PairOverview = {
+  pairId: null,
+  status: null,
+  code: null,
+  membersCount: null,
+};
 
 export default function ChatScreen() {
   const requestSeqRef = useRef(0);
   const sessionUidRef = useRef<string | null>(null);
-  const loadedHistoryPairIdRef = useRef<string | null>(null);
+  const historyPollInFlightRef = useRef(false);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [pairId, setPairId] = useState<string | null>(null);
@@ -124,6 +345,13 @@ export default function ChatScreen() {
   const [rewriteError, setRewriteError] = useState<string | null>(null);
   const [rewriteLoading, setRewriteLoading] = useState(false);
   const [rewriteCache, setRewriteCache] = useState<Record<string, string>>({});
+  const [isPairStatusOpen, setIsPairStatusOpen] = useState(false);
+  const [pairOverview, setPairOverview] = useState<PairOverview>(EMPTY_PAIR_OVERVIEW);
+  const [pairStatusLoading, setPairStatusLoading] = useState(false);
+  const [pairStatusError, setPairStatusError] = useState<string | null>(null);
+  const [pairCodeDraft, setPairCodeDraft] = useState("");
+  const [pairActionLoading, setPairActionLoading] = useState(false);
+  const [pairActionMessage, setPairActionMessage] = useState<string | null>(null);
 
   const canSend = useMemo(() => {
     return draft.trim().length > 0 && !isSending && !!pairId;
@@ -132,6 +360,9 @@ export default function ChatScreen() {
   const canReplaceDraft = useMemo(() => {
     return !rewriteLoading && !rewriteError && rewritePreview.trim().length > 0;
   }, [rewriteError, rewriteLoading, rewritePreview]);
+  const canSubmitPairCode = useMemo(() => {
+    return pairCodeDraft.trim().length >= 4 && !pairActionLoading;
+  }, [pairActionLoading, pairCodeDraft]);
 
   React.useEffect(() => {
     let mounted = true;
@@ -141,15 +372,24 @@ export default function ChatScreen() {
         const uid = normalizeNonEmptyString(session?.uid);
         sessionUidRef.current = uid;
 
-        const resolvedPairId = getSessionPairId(session);
+        let resolvedPairId = getPairIdFromSessionUser(session);
+        if (!resolvedPairId) {
+          try {
+            const pairRes = await api.get<PairApiResponse>("/v1/pairs/me");
+            resolvedPairId = normalizeNonEmptyString(pairRes.data?.pair?.id);
+          } catch {
+            // Keep fallback silent and use pairing redirect below.
+          }
+        }
+
         if (!mounted) return;
         if (!resolvedPairId) {
-          router.replace("/(onboarding)/pair");
+          router.replace("/pair");
           return;
         }
         setPairId(resolvedPairId);
       } catch {
-        if (mounted) router.replace("/(onboarding)/pair");
+        if (mounted) router.replace("/pair");
       }
     })();
     return () => {
@@ -159,25 +399,33 @@ export default function ChatScreen() {
 
   React.useEffect(() => {
     if (!pairId) return;
-    if (loadedHistoryPairIdRef.current === pairId) return;
-
-    loadedHistoryPairIdRef.current = pairId;
     let cancelled = false;
 
-    (async () => {
+    const fetchHistory = async () => {
+      if (historyPollInFlightRef.current) return;
+      historyPollInFlightRef.current = true;
       try {
         const res = await api.get(`/v1/chat/${pairId}/list`, { params: { limit: 30 } });
-        const history = normalizeHistoryMessages(res.data?.messages, sessionUidRef.current);
+        const history = normalizeHistoryMessages(res.data, sessionUidRef.current);
         if (!cancelled) {
           setMessages((prev) => mergeMessages(history, prev));
         }
       } catch {
         // Keep chat usable even if initial history fetch fails.
+      } finally {
+        historyPollInFlightRef.current = false;
       }
-    })();
+    };
+
+    void fetchHistory();
+    const intervalHandle = setInterval(() => {
+      void fetchHistory();
+    }, HISTORY_POLL_INTERVAL_MS);
 
     return () => {
       cancelled = true;
+      clearInterval(intervalHandle);
+      historyPollInFlightRef.current = false;
     };
   }, [pairId]);
 
@@ -186,28 +434,67 @@ export default function ChatScreen() {
     if (!text || isSending) return;
 
     if (!pairId) {
-      router.replace("/(onboarding)/pair");
+      router.replace("/pair");
       return;
     }
 
+    const messageId = makeId();
     // optimistic user message
     setDraft("");
-    const userId = makeId();
-    setMessages((prev) => [...prev, { id: userId, role: "user", text }]);
+    setMessages((prev) =>
+      {
+        const optimisticUserCreatedAt = getNextOptimisticTimestamp(prev);
+        return mergeMessages(
+          [{ id: messageId, role: "user", createdAtMs: optimisticUserCreatedAt, text }],
+          prev
+        );
+      }
+    );
     setIsSending(true);
 
     try {
-      const res = await api.post(`/v1/chat/${pairId}/send`, { text });
+      const res = await api.post(`/v1/chat/${pairId}/send`, {
+        text,
+        messageId,
+        clientId: sessionUidRef.current,
+      });
       const reply = typeof res.data?.reply === "string" ? res.data.reply.trim() : "";
 
       if (reply) {
-        setMessages((prev) => [...prev, { id: makeId(), role: "assistant", text: reply }]);
+        setMessages((prev) =>
+          {
+            const nextTimestamp = getNextOptimisticTimestamp(prev);
+            return mergeMessages(
+              [
+                {
+                  id: `assistant_${messageId}`,
+                  role: "assistant",
+                  createdAtMs: nextTimestamp,
+                  text: reply,
+                },
+              ],
+              prev
+            );
+          }
+        );
       }
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { id: makeId(), role: "assistant", text: "Message failed to send. Please try again." },
-      ]);
+    } catch {
+      setMessages((prev) =>
+        {
+          const nextTimestamp = getNextOptimisticTimestamp(prev);
+          return mergeMessages(
+            [
+              {
+                id: `local-error-${makeId()}`,
+                role: "assistant",
+                createdAtMs: nextTimestamp,
+                text: SEND_ERROR_MESSAGE,
+              },
+            ],
+            prev
+          );
+        }
+      );
     } finally {
       setIsSending(false);
     }
@@ -273,6 +560,95 @@ export default function ChatScreen() {
     closeRewrite();
   }
 
+  async function loadPairStatus() {
+    setPairStatusLoading(true);
+    setPairStatusError(null);
+
+    try {
+      const [session, pairResponse] = await Promise.all([
+        ensureSession(),
+        api.get<PairApiResponse>("/v1/pairs/me"),
+      ]);
+      const apiPair = pairResponse.data?.pair;
+
+      const nextOverview: PairOverview = {
+        pairId: normalizeNonEmptyString(apiPair?.id) ?? getPairIdFromSession(session),
+        status: normalizePairStatus(apiPair?.status) ?? getPairStatusFromSession(session),
+        code: normalizeNonEmptyString(apiPair?.code),
+        membersCount: getPairMembersCount(apiPair),
+      };
+
+      setPairOverview(nextOverview);
+      if (nextOverview.pairId) {
+        setPairId(nextOverview.pairId);
+      }
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: string } } };
+      setPairStatusError(err.response?.data?.error || "Could not load pair status.");
+    } finally {
+      setPairStatusLoading(false);
+    }
+  }
+
+  function onOpenPairStatus() {
+    setIsPairStatusOpen(true);
+    void loadPairStatus();
+  }
+
+  function onClosePairStatus() {
+    setIsPairStatusOpen(false);
+  }
+
+  async function onCreatePairCodeFromChat() {
+    if (pairActionLoading) return;
+
+    setPairActionLoading(true);
+    setPairStatusError(null);
+    setPairActionMessage(null);
+
+    try {
+      const res = await api.post<{ code?: string }>("/v1/pair/create", {});
+      const createdCode = normalizeNonEmptyString(res.data?.code);
+      setPairActionMessage(createdCode ? `Pairing code ready: ${createdCode}` : "Pair created.");
+      await loadPairStatus();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: string } } };
+      setPairStatusError(err.response?.data?.error || "Create pair failed.");
+    } finally {
+      setPairActionLoading(false);
+    }
+  }
+
+  async function onAddPairCodeFromChat() {
+    if (!canSubmitPairCode) return;
+
+    const code = pairCodeDraft.trim().toUpperCase();
+    setPairActionLoading(true);
+    setPairStatusError(null);
+    setPairActionMessage(null);
+
+    try {
+      await api.post("/v1/pair/join", { code });
+      setPairCodeDraft("");
+      setPairActionMessage("Pairing code added.");
+      await loadPairStatus();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: string } } };
+      setPairStatusError(err.response?.data?.error || "Join pair failed.");
+    } finally {
+      setPairActionLoading(false);
+    }
+  }
+
+  function onOpenPairingScreen() {
+    onClosePairStatus();
+    router.replace("/pair");
+  }
+
+  const pairStatusLabel = pairOverview.status ?? "not_paired";
+  const pairCodeLabel = pairOverview.code ?? "No code available";
+  const pairIdLabel = pairOverview.pairId ?? "Not paired";
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       <KeyboardAvoidingView
@@ -293,18 +669,33 @@ export default function ChatScreen() {
           }}
         >
           <Text style={{ fontSize: 20, fontWeight: "700", color: "#171717" }}>Chat</Text>
-          <Pressable
-            onPress={() => signOut(firebaseAuth)}
-            style={{
-              borderWidth: 1,
-              borderColor: "#D4D4D4",
-              borderRadius: 999,
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-            }}
-          >
-            <Text style={{ color: "#171717", fontWeight: "700" }}>Sign Out</Text>
-          </Pressable>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Pressable
+              onPress={onOpenPairStatus}
+              style={{
+                borderWidth: 1,
+                borderColor: "#D4D4D4",
+                borderRadius: 999,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+              }}
+            >
+              <Text style={{ color: "#171717", fontWeight: "700" }}>Pair Status</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => signOut(firebaseAuth)}
+              style={{
+                borderWidth: 1,
+                borderColor: "#D4D4D4",
+                borderRadius: 999,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+              }}
+            >
+              <Text style={{ color: "#171717", fontWeight: "700" }}>Sign Out</Text>
+            </Pressable>
+          </View>
         </View>
 
         <FlatList
@@ -319,20 +710,30 @@ export default function ChatScreen() {
           }
           renderItem={({ item }) => {
             const isUser = item.role === "user";
+            const isPartner = item.role === "partner";
+            const isAssistant = item.role === "assistant";
+            const authorLabel = isUser ? "You" : isPartner ? "Partner" : "System (AI)";
+            const authorColor = isUser ? "#065F46" : isPartner ? "#1D4ED8" : "#6B7280";
+            const timestampLabel = formatMessageDateTime(item.createdAtMs);
             return (
               <View
                 style={{
-                  alignSelf: isUser ? "flex-end" : "flex-start",
+                  alignSelf: isUser ? "flex-end" : isPartner ? "flex-start" : "center",
                   maxWidth: "85%",
                   borderRadius: 14,
                   borderWidth: 1,
-                  borderColor: isUser ? "#D4F4EC" : "#E6E6E6",
-                  backgroundColor: isUser ? "#EFFCF8" : "#FAFAFA",
+                  borderColor: isUser ? "#D4F4EC" : isPartner ? "#DBEAFE" : "#E6E6E6",
+                  backgroundColor: isUser ? "#EFFCF8" : isPartner ? "#EFF6FF" : "#FAFAFA",
                   paddingVertical: 10,
                   paddingHorizontal: 12,
                 }}
               >
-                <Text style={{ color: "#171717", lineHeight: 20 }}>{item.text}</Text>
+                <Text style={{ color: authorColor, fontWeight: "700", fontSize: 12, marginBottom: 4 }}>
+                  {`${authorLabel} • ${timestampLabel}`}
+                </Text>
+                <Text style={{ color: "#171717", lineHeight: 20, textAlign: isAssistant ? "center" : "left" }}>
+                  {item.text}
+                </Text>
               </View>
             );
           }}
@@ -407,6 +808,154 @@ export default function ChatScreen() {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal visible={isPairStatusOpen} transparent animationType="slide" onRequestClose={onClosePairStatus}>
+        <View style={{ flex: 1, justifyContent: "flex-end" }}>
+          <Pressable
+            onPress={onClosePairStatus}
+            style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(0,0,0,0.25)" }}
+          />
+
+          <View
+            style={{
+              backgroundColor: "#FFFFFF",
+              borderTopLeftRadius: 18,
+              borderTopRightRadius: 18,
+              borderWidth: 1,
+              borderColor: "#E5E7EB",
+              paddingHorizontal: 14,
+              paddingTop: 14,
+              paddingBottom: 18,
+              gap: 12,
+            }}
+          >
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <Text style={{ fontSize: 16, fontWeight: "800", color: "#111827" }}>Pair Status</Text>
+              <Pressable
+                onPress={onClosePairStatus}
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#D1D5DB",
+                  borderRadius: 999,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                }}
+              >
+                <Text style={{ color: "#111827", fontWeight: "700" }}>Close</Text>
+              </Pressable>
+            </View>
+
+            <View
+              style={{
+                borderWidth: 1,
+                borderColor: "#E5E7EB",
+                borderRadius: 12,
+                backgroundColor: "#F9FAFB",
+                padding: 12,
+                gap: 8,
+              }}
+            >
+              {pairStatusLoading ? (
+                <Text style={{ color: "#374151" }}>Loading pair status…</Text>
+              ) : (
+                <>
+                  <Text style={{ color: "#111827", fontWeight: "700" }}>Pair ID: {pairIdLabel}</Text>
+                  <Text style={{ color: "#111827" }}>Status: {pairStatusLabel}</Text>
+                  <Text style={{ color: "#111827" }}>Code: {pairCodeLabel}</Text>
+                  {pairOverview.membersCount !== null ? (
+                    <Text style={{ color: "#111827" }}>Members: {pairOverview.membersCount}</Text>
+                  ) : null}
+                </>
+              )}
+            </View>
+
+            {pairStatusError ? (
+              <View style={{ borderRadius: 12, backgroundColor: "#FEF2F2", padding: 12 }}>
+                <Text style={{ color: "#991B1B", fontWeight: "700" }}>{pairStatusError}</Text>
+              </View>
+            ) : null}
+
+            {pairActionMessage ? (
+              <View style={{ borderRadius: 12, backgroundColor: "#EFFCF8", padding: 12 }}>
+                <Text style={{ color: "#065F46", fontWeight: "700" }}>{pairActionMessage}</Text>
+              </View>
+            ) : null}
+
+            <View style={{ gap: 8 }}>
+              <Pressable
+                onPress={() => void loadPairStatus()}
+                disabled={pairStatusLoading || pairActionLoading}
+                style={{
+                  backgroundColor: pairStatusLoading || pairActionLoading ? "#D1D5DB" : "#111",
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "800" }}>Review Pairing Status</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={onCreatePairCodeFromChat}
+                disabled={pairActionLoading}
+                style={{
+                  backgroundColor: pairActionLoading ? "#D1D5DB" : "#111",
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "800" }}>
+                  {pairActionLoading ? "Working..." : "Create Pairing Code"}
+                </Text>
+              </Pressable>
+            </View>
+
+            <View style={{ gap: 8 }}>
+              <TextInput
+                value={pairCodeDraft}
+                onChangeText={setPairCodeDraft}
+                placeholder="Enter pairing code"
+                autoCapitalize="characters"
+                editable={!pairActionLoading}
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#D1D5DB",
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  fontWeight: "700",
+                }}
+              />
+              <Pressable
+                onPress={onAddPairCodeFromChat}
+                disabled={!canSubmitPairCode}
+                style={{
+                  backgroundColor: canSubmitPairCode ? "#111" : "#D1D5DB",
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "800" }}>Add Pairing Code</Text>
+              </Pressable>
+            </View>
+
+            <Pressable
+              onPress={onOpenPairingScreen}
+              style={{
+                borderWidth: 1,
+                borderColor: "#D1D5DB",
+                borderRadius: 10,
+                alignItems: "center",
+                paddingVertical: 12,
+              }}
+            >
+              <Text style={{ color: "#111827", fontWeight: "700" }}>Open Pairing Screen</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={isRewriteOpen} transparent animationType="slide" onRequestClose={closeRewrite}>
         <View style={{ flex: 1, justifyContent: "flex-end" }}>
