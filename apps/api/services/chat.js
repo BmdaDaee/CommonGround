@@ -1,7 +1,13 @@
 // services/chat.js
 
+const crypto = require("crypto");
 const { db } = require("../config/firebaseAdmin");
 const { FieldValue } = require("firebase-admin/firestore");
+
+function generateMessageId() {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return `msg_${Date.now()}_${crypto.randomBytes(6).toString("hex")}`;
+}
 
 async function assertPairMember(pairId, uid) {
   const pairSnap = await db.collection("pairs").doc(pairId).get();
@@ -39,14 +45,17 @@ async function sendMessage({ pairId, messageId, clientId, senderId, text }) {
 
   await assertPairMember(pairId, senderId);
 
-  const msgRef = db.collection("pairs").doc(pairId).collection("messages").doc(messageId);
+  const resolvedMessageId =
+    typeof messageId === "string" && messageId.trim().length > 0 ? messageId.trim() : generateMessageId();
+
+  const msgRef = db.collection("pairs").doc(pairId).collection("messages").doc(resolvedMessageId);
 
   const result = await db.runTransaction(async (tx) => {
     const existing = await tx.get(msgRef);
     if (existing.exists) return existing.data();
 
     const data = {
-      id: messageId,
+      id: resolvedMessageId,
       clientId: clientId || null,
       senderId,
       text,

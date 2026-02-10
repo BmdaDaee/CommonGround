@@ -10,26 +10,28 @@ router.use(requireAuth);
 
 /**
  * POST /v1/chat/:pairId/send
- * body: { messageId, clientId?, text }
+ * body: { text, messageId?, clientId? }
  */
 router.post("/:pairId/send", async (req, res) => {
   try {
     const { uid } = req.auth;
     const { pairId } = req.params;
-    const { messageId, clientId, text } = req.body || {};
+    const { text, messageId, clientId } = req.body || {};
 
-    if (!messageId || typeof messageId !== "string") return res.status(400).json({ error: "missing_messageId" });
     if (!text || typeof text !== "string") return res.status(400).json({ error: "missing_text" });
 
     const message = await sendMessage({
       pairId,
       messageId,
-      clientId: clientId || null,
+      clientId,
       senderId: uid,
       text,
     });
 
-    return res.json({ message });
+    return res.json({
+      ok: true,
+      reply: typeof message?.reply === "string" ? message.reply : "",
+    });
   } catch (err) {
     console.error("CHAT SEND ERROR:", err);
     return res.status(err.status || 500).json({ error: err.message || "send_failed" });

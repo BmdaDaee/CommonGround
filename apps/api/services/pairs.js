@@ -21,10 +21,26 @@ function generateJoinCode() {
   return out;
 }
 
+function getActivePairId(user = null) {
+  if (!user || typeof user !== "object") return null;
+  const activePairId = user.activePairId || user.pairId || null;
+  return typeof activePairId === "string" && activePairId.trim() ? activePairId : null;
+}
+
+function withPairAliases(user = null) {
+  const safeUser = user && typeof user === "object" ? user : {};
+  const activePairId = getActivePairId(safeUser);
+  return {
+    ...safeUser,
+    activePairId,
+    pairId: activePairId,
+  };
+}
+
 async function ensureUserDoc(uid, authToken, overrides = {}) {
   const ref = db.collection("users").doc(uid);
   const snap = await ref.get();
-  if (snap.exists) return snap.data();
+  if (snap.exists) return withPairAliases(snap.data());
 
   const now = FieldValue.serverTimestamp();
   const data = {
@@ -41,7 +57,7 @@ async function ensureUserDoc(uid, authToken, overrides = {}) {
   await ref.set(data, { merge: true });
   // Re-read so callers get real timestamps (not FieldValue sentinels)
   const created = await ref.get();
-  return created.data();
+  return withPairAliases(created.data());
 }
 
 /**
@@ -56,7 +72,7 @@ async function createPair(uid) {
 
   await db.runTransaction(async (tx) => {
     const userSnap = await tx.get(userRef);
-    if (userSnap.exists && userSnap.data()?.activePairId) {
+    if (userSnap.exists && getActivePairId(userSnap.data())) {
       throw new Error("user_already_paired");
     }
 
@@ -123,7 +139,7 @@ async function joinPair(uid, code) {
     }
 
     const userData = userSnap.exists ? userSnap.data() : null;
-    if (userData?.activePairId) throw new Error("user_already_paired");
+    if (getActivePairId(userData)) throw new Error("user_already_paired");
 
     const members = pairData.members || {};
     const memberIds = Object.keys(members);
@@ -185,7 +201,7 @@ async function leaveActivePair(uid) {
       throw err;
     }
 
-    const activePairId = userSnap.data()?.activePairId || null;
+    const activePairId = getActivePairId(userSnap.data());
     if (!activePairId) return { left: false, pairId: null };
 
     const pairRef = db.collection("pairs").doc(activePairId);
@@ -224,7 +240,7 @@ async function leaveActivePair(uid) {
 async function getMyPair(uid) {
   const userSnap = await db.collection("users").doc(uid).get();
   if (!userSnap.exists) return { pair: null };
-  const activePairId = userSnap.data()?.activePairId || null;
+  const activePairId = getActivePairId(userSnap.data());
   if (!activePairId) return { pair: null };
   const pairSnap = await db.collection("pairs").doc(activePairId).get();
   if (!pairSnap.exists) return { pair: null };
