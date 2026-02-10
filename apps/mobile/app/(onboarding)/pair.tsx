@@ -65,7 +65,17 @@ function getPairingStateLabel(snapshot: PairSnapshot) {
 function getRoleLabel(role: PairRole | null) {
   if (role === "a") return "member A";
   if (role === "b") return "member B";
-  return "unknown";
+  return null;
+}
+
+function getPairingStateHelpText(snapshot: PairSnapshot) {
+  if (!snapshot.pairId) {
+    return "You are not paired yet. Create a code or join with your partner's code to continue.";
+  }
+  if (snapshot.status === "active") {
+    return "Your pair is active. Open chat now to continue.";
+  }
+  return "Your pair is waiting for your partner. Share the code, then open chat when ready.";
 }
 
 export default function PairScreen() {
@@ -273,7 +283,7 @@ export default function PairScreen() {
         pairId: normalizeNonEmptyString(data.pairId) || prev.pairId,
         status: prev.status || "pending",
         code: normalizeNonEmptyString(data.code),
-        pairRole: prev.pairRole || "a",
+        pairRole: prev.pairRole,
       }));
       // Do NOT auto-route. Creator must be able to see the code.
     } catch (e: any) {
@@ -333,32 +343,28 @@ export default function PairScreen() {
   }
 
   const statusLabel = getPairingStateLabel(pairSnapshot);
+  const statusHelpText = getPairingStateHelpText(pairSnapshot);
   const roleLabel = getRoleLabel(pairSnapshot.pairRole);
-  const codeLabel = pairSnapshot.code ?? createdCode ?? "No code available";
+  const pairCodeLabel = pairSnapshot.code ?? createdCode;
 
   return (
     <View style={{ flex: 1, padding: 20, gap: 14, justifyContent: "center" }}>
       <Text style={{ fontSize: 22, fontWeight: "800" }}>Pair Up</Text>
       <Text style={{ color: "#666" }}>
-        Create a pair code for your partner, or join with their code. If you are already paired, open chat directly.
+        Create a pair code for your partner or join with their code. If you are already paired, open chat directly.
       </Text>
 
-      {error ? (
-        <View style={{ padding: 12, borderRadius: 12, backgroundColor: "#FEF2F2" }}>
-          <Text style={{ color: "#991B1B", fontWeight: "700" }}>{error}</Text>
-        </View>
-      ) : null}
-
       <View style={{ gap: 10, padding: 14, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 14, backgroundColor: "#F9FAFB" }}>
-        <Text style={{ fontSize: 16, fontWeight: "800" }}>Current pairing state</Text>
+        <Text style={{ fontSize: 16, fontWeight: "800" }}>Pairing Status</Text>
         {snapshotLoading ? (
-          <Text style={{ color: "#666" }}>Checking current pairing state…</Text>
+          <Text style={{ color: "#666" }}>Checking your pairing status…</Text>
         ) : (
           <>
-            <Text style={{ color: "#111", fontWeight: "700" }}>Status: {statusLabel}</Text>
-            <Text style={{ color: "#374151" }}>Pair ID: {pairSnapshot.pairId || "Not paired"}</Text>
-            <Text style={{ color: "#374151" }}>Code: {codeLabel}</Text>
-            <Text style={{ color: "#374151" }}>You: {roleLabel}</Text>
+            <Text style={{ color: "#111", fontSize: 18, fontWeight: "800" }}>{statusLabel}</Text>
+            <Text style={{ color: "#4B5563" }}>{statusHelpText}</Text>
+            {pairSnapshot.pairId ? <Text style={{ color: "#374151" }}>Pair ID: {pairSnapshot.pairId}</Text> : null}
+            {pairCodeLabel ? <Text style={{ color: "#374151" }}>Pairing code: {pairCodeLabel}</Text> : null}
+            {roleLabel ? <Text style={{ color: "#374151" }}>You: {roleLabel}</Text> : null}
             {isPaired ? (
               <Pressable
                 onPress={onOpenChatNow}
@@ -381,7 +387,7 @@ export default function PairScreen() {
                 {createdCode}
               </Text>
               <Text style={{ marginTop: 6, color: "#666" }}>
-                Share this code with your partner. This screen will stay until you continue.
+                Share this code with your partner, then tap Continue to check your chat readiness.
               </Text>
             </View>
 
@@ -408,6 +414,12 @@ export default function PairScreen() {
             </Text>
           </Pressable>
         )}
+
+        {isPaired ? (
+          <Text style={{ color: "#6B7280" }}>
+            Create is unavailable while you are paired. Leave your current pair before creating a new one.
+          </Text>
+        ) : null}
       </View>
 
       <View style={{ gap: 10, padding: 14, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 14 }}>
@@ -420,7 +432,7 @@ export default function PairScreen() {
             setJoinSuccessMessage(null);
             setCode(value);
           }}
-          placeholder="Enter code"
+          placeholder="Enter partner code"
           autoCapitalize="characters"
           editable={!isPaired && !joinLoading}
           style={{
@@ -449,7 +461,7 @@ export default function PairScreen() {
 
         {isPaired ? (
           <Text style={{ color: "#6B7280" }}>
-            You are already paired. Leave your current pair to join another one.
+            Join is unavailable while you are paired. Leave your current pair to join a different one.
           </Text>
         ) : null}
 
@@ -467,7 +479,7 @@ export default function PairScreen() {
       </View>
 
       <View style={{ gap: 10, padding: 14, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 14 }}>
-        <Text style={{ fontSize: 16, fontWeight: "800" }}>Already paired?</Text>
+        <Text style={{ fontSize: 16, fontWeight: "800" }}>Recover or leave pair</Text>
         <Pressable
           onPress={onCheckExistingPair}
           disabled={recoveryLoading || leaveLoading}
@@ -479,7 +491,7 @@ export default function PairScreen() {
           }}
         >
           <Text style={{ color: "#fff", fontWeight: "800" }}>
-            {recoveryLoading ? "Checking…" : "Refresh pairing state"}
+            {recoveryLoading ? "Checking…" : "Refresh pairing status"}
           </Text>
         </Pressable>
 
@@ -500,6 +512,12 @@ export default function PairScreen() {
           </Text>
         </Pressable>
       </View>
+
+      {error ? (
+        <View style={{ padding: 12, borderRadius: 12, backgroundColor: "#FEF2F2" }}>
+          <Text style={{ color: "#991B1B", fontWeight: "700" }}>{error}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
