@@ -74,18 +74,10 @@ This phase ships the stuff that makes everything else possible:
   "updatedAt": <serverTimestamp>
 }
 ```
-
-### /pairs/{pairId}/messages/{messageId}
-```json
-{
-  "id": "<uuid>",
-  "clientId": "ios" | "android" | "web" | null,
-  "senderId": "<uid>",
-  "text": "...",
-  "createdAt": <serverTimestamp>,
-  "serverCreatedAt": <serverTimestamp>
-}
-```
+> ⚠️ Chat messages are NOT stored in Firestore.
+> Chat message persistence is handled by Supabase (dev-only).
+> Firestore now clearly = identity + pairing only.
+> See `docs/SUPABASE_PROOF.md` for the definitive proof artifact.
 
 ## API (Express) endpoints (Phase 1)
 
@@ -99,6 +91,7 @@ All endpoints expect `Authorization: Bearer <Firebase ID token>`.
 - `PUT /v1/profile` (update displayName/photoURL)
 - `POST /v1/chat/:pairId/send` (idempotent send)
 - `GET /v1/chat/:pairId/list` (pagination)
+- Supabase chat proof artifact: `docs/SUPABASE_PROOF.md`
 
 ## Firebase setup (dev)
 
@@ -151,8 +144,9 @@ npm run dev:mobile
 3) Create a pair on device A. Copy code.
 4) Join on device B with code.
 5) Send messages both ways.
-6) In Firestore console, verify messages land under `pairs/{pairId}/messages/...`.
-
+6) Verify chat messages via:
+   GET /v1/chat/:pairId/list  
+   (Supabase-backed; see `docs/SUPABASE_PROOF.md`)
 
 ## UI Tokens + Shared UI (merged from repo.txt)
 
