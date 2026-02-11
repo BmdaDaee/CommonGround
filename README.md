@@ -2,8 +2,20 @@
 
 ## Prerequisites
 
+<<<<<<< ours
 - Node.js `20.x` (matches CI in `.github/workflows/check.yml`)
 - npm `10+`
+=======
+## Project Docs
+
+- [Canon Guardrails](docs/CANON.md)
+
+## Project Docs
+
+- [Canon Guardrails](docs/CANON.md)
+
+## Quick start
+>>>>>>> theirs
 
 ## Monorepo Structure
 
