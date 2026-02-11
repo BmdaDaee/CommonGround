@@ -12,6 +12,12 @@ function decodeJwtPayload(token) {
   }
 }
 
+function getBearerToken(req) {
+  const header = req.headers.authorization || "";
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1] : null;
+}
+
 /**
  * Firebase Auth middleware
  * - Expects: Authorization: Bearer <Firebase ID token>
@@ -20,30 +26,31 @@ function decodeJwtPayload(token) {
 async function requireAuth(req, res, next) {
   try {
     if (isSupabaseLocked()) {
-      const devUid = req.headers["x-dev-uid"] || req.headers["x-test-uid"];
-      if (!devUid || typeof devUid !== "string") {
-        const header = req.headers.authorization || "";
-        const match = header.match(/^Bearer\s+(.+)$/i);
-        if (!match) return res.status(401).json({ error: "missing_dev_uid" });
-
-        const decoded = decodeJwtPayload(match[1]);
-        const tokenUid = decoded?.uid || decoded?.sub || null;
-        if (!tokenUid || typeof tokenUid !== "string") {
-          return res.status(401).json({ error: "invalid_token" });
-        }
-
-        req.auth = { uid: tokenUid, token: decoded || { uid: tokenUid } };
+      const devUidHeader = req.headers["x-dev-uid"] || req.headers["x-test-uid"];
+      const devUid = typeof devUidHeader === "string" ? devUidHeader.trim() : "";
+      if (devUid) {
+        req.auth = { uid: devUid, token: { uid: devUid } };
         return next();
       }
-      req.auth = { uid: devUid, token: { uid: devUid } };
+
+      const bearerToken = getBearerToken(req);
+      if (!bearerToken) {
+        return res.status(401).json({ error: "missing_bearer_token" });
+      }
+
+      const decoded = decodeJwtPayload(bearerToken);
+      const tokenUid = decoded?.uid || decoded?.sub || decoded?.user_id || null;
+      if (!tokenUid || typeof tokenUid !== "string") {
+        return res.status(401).json({ error: "invalid_token" });
+      }
+
+      req.auth = { uid: tokenUid, token: decoded || { uid: tokenUid } };
       return next();
     }
 
-    const header = req.headers.authorization || "";
-    const match = header.match(/^Bearer\s+(.+)$/i);
-    if (!match) return res.status(401).json({ error: "missing_bearer_token" });
+    const idToken = getBearerToken(req);
+    if (!idToken) return res.status(401).json({ error: "missing_bearer_token" });
 
-    const idToken = match[1];
     const decoded = await admin.auth().verifyIdToken(idToken);
     req.auth = { uid: decoded.uid, token: decoded };
     return next();
