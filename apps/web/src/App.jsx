@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import "./App.css";
+import { REWRITE_MODES, rewriteWithKeystone } from "./lib/keystoneClient";
 
 const DEFAULT_USER_ID = "test-user-1";
 const API_BASE = ""; // Vite proxy
@@ -162,6 +163,10 @@ export default function App() {
   const [view, setView] = useState("chat"); // chat | tools
   const [userId, setUserId] = useState(DEFAULT_USER_ID);
   const [message, setMessage] = useState("");
+  const [rewriteMode, setRewriteMode] = useState("clearer");
+  const [rewrittenDraft, setRewrittenDraft] = useState("");
+  const [rewriteError, setRewriteError] = useState("");
+  const [isRewriting, setIsRewriting] = useState(false);
   const [useStream, setUseStream] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
@@ -349,12 +354,55 @@ export default function App() {
     }
   };
 
+  const onRewrite = async () => {
+    setRewriteError("");
+
+    const draft = message.trim();
+    if (!draft) {
+      setRewrittenDraft("");
+      setRewriteError("Type a draft message before using Rewrite.");
+      return;
+    }
+
+    setIsRewriting(true);
+    try {
+      const rewritten = await rewriteWithKeystone({ draft, mode: rewriteMode });
+      if (!rewritten.trim()) {
+        setRewrittenDraft("");
+        setRewriteError("Keystone returned an empty rewrite.");
+        return;
+      }
+
+      setRewrittenDraft(rewritten);
+    } catch (err) {
+      setRewrittenDraft("");
+      setRewriteError(err?.message || "Rewrite failed.");
+    } finally {
+      setIsRewriting(false);
+    }
+  };
+
+  const onReplaceWithRewrite = () => {
+    if (!rewrittenDraft) return;
+    setMessage(rewrittenDraft);
+  };
+
+  const onCopyRewriteIntoDraft = () => {
+    if (!rewrittenDraft) return;
+    setMessage((prev) => {
+      if (!prev.trim()) return rewrittenDraft;
+      return `${prev}\n${rewrittenDraft}`;
+    });
+  };
+
   const onSend = async () => {
     setError("");
+    setRewriteError("");
     const text = message.trim();
     if (!text) return;
 
     setMessage("");
+    setRewrittenDraft("");
     pushText("user", text);
 
     setIsSending(true);
@@ -660,10 +708,112 @@ export default function App() {
       </div>
 
       {/* Composer */}
+      <div
+        style={{
+          marginTop: 12,
+          border: "1px solid #eee",
+          borderRadius: 14,
+          padding: 10,
+          background: "#fcfcff",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 12, opacity: 0.8, fontWeight: 800 }}>Rewrite</span>
+          <select
+            value={rewriteMode}
+            onChange={(e) => setRewriteMode(e.target.value)}
+            disabled={isRewriting}
+            style={{
+              borderRadius: 10,
+              border: "1px solid #ddd",
+              background: "#fff",
+              padding: "6px 8px",
+              fontSize: 12,
+            }}
+          >
+            {REWRITE_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {mode}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={onRewrite}
+            disabled={isRewriting || !message.trim()}
+            style={{
+              padding: "7px 10px",
+              borderRadius: 10,
+              border: "1px solid #ddd",
+              background: isRewriting ? "#f3f3f3" : "#fff",
+              fontSize: 12,
+              fontWeight: 900,
+              cursor: isRewriting || !message.trim() ? "not-allowed" : "pointer",
+            }}
+          >
+            {isRewriting ? "Rewriting..." : "Rewrite"}
+          </button>
+          <span style={{ fontSize: 11, opacity: 0.65 }}>Optional. Runs only when you click Rewrite.</span>
+        </div>
+
+        {rewriteError ? (
+          <div style={{ marginTop: 8, color: "crimson", fontSize: 12 }}>
+            <strong>Rewrite error:</strong> {rewriteError}
+          </div>
+        ) : null}
+
+        {rewrittenDraft ? (
+          <div
+            style={{
+              marginTop: 8,
+              border: "1px solid #e6d9ff",
+              borderRadius: 12,
+              padding: 10,
+              background: "#fff",
+            }}
+          >
+            <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 6 }}>Rewrite preview</div>
+            <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.35 }}>{rewrittenDraft}</div>
+            <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                onClick={onReplaceWithRewrite}
+                style={{
+                  padding: "7px 10px",
+                  borderRadius: 10,
+                  border: "1px solid #ddd",
+                  background: "#fff",
+                  fontSize: 12,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                Replace draft
+              </button>
+              <button
+                onClick={onCopyRewriteIntoDraft}
+                style={{
+                  padding: "7px 10px",
+                  borderRadius: 10,
+                  border: "1px solid #ddd",
+                  background: "#fff",
+                  fontSize: 12,
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                Copy into draft
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
         <textarea
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={(e) => {
+            setMessage(e.target.value);
+            if (rewrittenDraft) setRewrittenDraft("");
+          }}
           onKeyDown={onKeyDown}
           placeholder='Try: "As soon as there’s tension, I shut down..."'
           style={{
