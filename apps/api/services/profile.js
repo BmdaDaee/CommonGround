@@ -1,5 +1,5 @@
 const { isSupabaseLocked } = require("../config/backend");
 
 module.exports = isSupabaseLocked()
-  ? require("./chat.supabase")
-  : require("./chat.firebase");
+  ? require("./profile.supabase")
+  : require("./profile.firebase");
