@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, SafeAreaView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { v4 as uuidv4 } from "uuid";
 import { Mode, ModeToggle, ChatBubble } from "@cg/ui";
@@ -22,11 +22,11 @@ export default function ChatScreen() {
 
   const list = useMemo(() => [...messages].sort((a, b) => a.createdAt - b.createdAt), [messages]);
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!pairId) return;
     const res = await apiGet(`/v1/chat/${pairId}/list?limit=50`);
     setMessages(res.messages ?? []);
-  }
+  }, [pairId]);
 
   async function send() {
     if (!pairId || !user) return;
@@ -48,7 +48,7 @@ export default function ChatScreen() {
 
     try {
       await apiPost(`/v1/chat/${pairId}/send`, { messageId, text: trimmed });
-    } catch (e) {
+    } catch {
       // If send fails, reload to reconcile. (Yes, annoying. Also reliable.)
       await load();
     }
@@ -57,7 +57,7 @@ export default function ChatScreen() {
   useEffect(() => {
     setLoading(true);
     load().finally(() => setLoading(false));
-  }, [pairId]);
+  }, [load]);
 
   const systemHeader = {
     id: "system-hello",

@@ -1,5 +1,9 @@
 // config/firebaseAdmin.js
 
+const { assertFirebaseAllowed } = require("./runtime");
+
+assertFirebaseAllowed("apps/api/config/firebaseAdmin");
+
 const admin = require("firebase-admin");
 const { getFirestore } = require("firebase-admin/firestore");
 
