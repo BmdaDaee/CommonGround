@@ -1,14 +1,15 @@
 import axios from 'axios';
-import { firebaseAuth } from './firebase';
-
-const baseURL = process.env.EXPO_PUBLIC_CG_API_BASE_URL || 'http://localhost:3001';
+import { apiBaseURL, isSupabaseLocked } from './runtime';
 
 export const api = axios.create({
-  baseURL,
+  baseURL: apiBaseURL,
   timeout: 15000,
 });
 
 api.interceptors.request.use(async (config) => {
+  if (isSupabaseLocked) return config;
+
+  const { firebaseAuth } = await import('./firebase');
   const user = firebaseAuth.currentUser;
   if (user) {
     const token = await user.getIdToken();

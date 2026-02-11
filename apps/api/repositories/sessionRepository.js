@@ -1,5 +1,7 @@
 // backend/repositories/sessionRepository.js
-const store = (process.env.SESSION_STORE || "memory").toLowerCase();
+const { getSessionStore } = require("../config/runtime");
+
+const store = getSessionStore();
 
 if (store === "firebase") {
   module.exports = require("./sessionRepository.firebase");

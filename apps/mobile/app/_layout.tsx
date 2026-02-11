@@ -33,7 +33,7 @@ function Gate() {
     // Signed in + paired -> main app
     const inApp = segments[0] === '(app)';
     if (!inApp) router.replace('/(app)/chat');
-  }, [user, loading, profile, segments]);
+  }, [user, loading, profile, segments, router]);
 
   return (
     <Stack>

@@ -1,6 +1,9 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { assertFirebaseAllowed } from './runtime';
+
+assertFirebaseAllowed('apps/mobile/lib/firebase');
 
 // Expo public env vars (set in apps/mobile/.env)
 const firebaseConfig = {
