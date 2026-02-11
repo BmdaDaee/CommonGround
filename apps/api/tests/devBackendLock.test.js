@@ -42,6 +42,23 @@ async function jsonRequest(url, { method = "GET", uid = "u1", body } = {}) {
   return { status: res.status, json };
 }
 
+async function jsonRequestBearer(url, { method = "GET", uid = "u1", body } = {}) {
+  const payload = Buffer.from(JSON.stringify({ sub: uid }), "utf8").toString("base64url");
+  const fakeJwt = `x.${payload}.y`;
+
+  const res = await fetch(url, {
+    method,
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${fakeJwt}`,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  const json = await res.json();
+  return { status: res.status, json };
+}
+
 test("DEV_BACKEND_LOCK=supabase blocks firestore with deterministic error", async () => {
   process.env.DEV_BACKEND_LOCK = "supabase";
   const { upsertUser } = require("../services/db");
@@ -96,4 +113,17 @@ test("supabase lock mode preserves envelopes for pair/profile/chat flow", async 
   });
   assert.equal(updated.status, 200);
   assert.equal(updated.json.profile.displayName, "Alice");
+});
+
+test("supabase lock mode accepts bearer token for uid extraction", async (t) => {
+  const proc = await startServer();
+  t.after(() => proc.kill("SIGTERM"));
+
+  const session = await jsonRequestBearer("http://127.0.0.1:3311/v1/auth/session", {
+    method: "POST",
+    uid: "token-user",
+  });
+
+  assert.equal(session.status, 200);
+  assert.equal(session.json.uid, "token-user");
 });
