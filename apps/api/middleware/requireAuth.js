@@ -20,14 +20,11 @@ function decodeJwtPayload(token) {
 async function requireAuth(req, res, next) {
   try {
     if (isSupabaseLocked()) {
-      const devUid = req.headers["x-dev-uid"] || req.headers["x-test-uid"];
-      if (!devUid || typeof devUid !== "string") {
-        const header = req.headers.authorization || "";
-        const match = header.match(/^Bearer\s+(.+)$/i);
-        if (!match) return res.status(401).json({ error: "missing_dev_uid" });
-
+      const header = req.headers.authorization || "";
+      const match = header.match(/^Bearer\s+(.+)$/i);
+      if (match) {
         const decoded = decodeJwtPayload(match[1]);
-        const tokenUid = decoded?.uid || decoded?.sub || null;
+        const tokenUid = decoded?.uid || decoded?.sub || decoded?.user_id || null;
         if (!tokenUid || typeof tokenUid !== "string") {
           return res.status(401).json({ error: "invalid_token" });
         }
@@ -35,6 +32,12 @@ async function requireAuth(req, res, next) {
         req.auth = { uid: tokenUid, token: decoded || { uid: tokenUid } };
         return next();
       }
+
+      const devUid = req.headers["x-dev-uid"] || req.headers["x-test-uid"];
+      if (!devUid || typeof devUid !== "string") {
+        return res.status(401).json({ error: "missing_dev_uid" });
+      }
+
       req.auth = { uid: devUid, token: { uid: devUid } };
       return next();
     }
