@@ -42,8 +42,8 @@ async function jsonRequest(url, { method = "GET", uid = "u1", body } = {}) {
   return { status: res.status, json };
 }
 
-async function jsonRequestBearer(url, { method = "GET", uid = "u1", body } = {}) {
-  const payload = Buffer.from(JSON.stringify({ sub: uid }), "utf8").toString("base64url");
+async function jsonRequestBearer(url, { method = "GET", uid = "u1", body, claim = "sub" } = {}) {
+  const payload = Buffer.from(JSON.stringify({ [claim]: uid }), "utf8").toString("base64url");
   const fakeJwt = `x.${payload}.y`;
 
   const res = await fetch(url, {
@@ -126,4 +126,18 @@ test("supabase lock mode accepts bearer token for uid extraction", async (t) => 
 
   assert.equal(session.status, 200);
   assert.equal(session.json.uid, "token-user");
+});
+
+test("supabase lock mode accepts firebase user_id claim for uid extraction", async (t) => {
+  const proc = await startServer();
+  t.after(() => proc.kill("SIGTERM"));
+
+  const session = await jsonRequestBearer("http://127.0.0.1:3311/v1/auth/session", {
+    method: "POST",
+    uid: "firebase-user",
+    claim: "user_id",
+  });
+
+  assert.equal(session.status, 200);
+  assert.equal(session.json.uid, "firebase-user");
 });
