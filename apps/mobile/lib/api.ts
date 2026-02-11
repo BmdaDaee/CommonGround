@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { firebaseAuth } from './firebase';
+import { isSupabaseLocked } from './runtime';
 
 const baseURL = process.env.EXPO_PUBLIC_CG_API_BASE_URL || 'http://localhost:3001';
 
@@ -9,10 +9,6 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
-  const user = firebaseAuth.currentUser;
-  if (user) {
-    const token = await user.getIdToken();
-    config.headers = {
       ...config.headers,
       Authorization: `Bearer ${token}`,
     };
