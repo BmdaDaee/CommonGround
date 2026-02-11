@@ -2,8 +2,7 @@
 
 const express = require("express");
 const { requireAuth } = require("../../middleware/requireAuth");
-const { db } = require("../../config/firebaseAdmin");
-const { FieldValue } = require("firebase-admin/firestore");
+const { getProfile, updateProfile } = require("../../services/profile");
 
 const router = express.Router();
 
@@ -15,10 +14,10 @@ router.use(requireAuth);
 router.get("/", async (req, res) => {
   try {
     const { uid } = req.auth;
-    const snap = await db.collection("users").doc(uid).get();
-    if (!snap.exists) return res.status(404).json({ error: "profile_not_found" });
-    return res.json({ profile: snap.data() });
+    const result = await getProfile(uid);
+    return res.json(result);
   } catch (err) {
+    if (err.status === 404) return res.status(404).json({ error: "profile_not_found" });
     console.error("PROFILE READ ERROR:", err);
     return res.status(500).json({ error: "profile_read_failed" });
   }
@@ -33,15 +32,8 @@ router.put("/", async (req, res) => {
     const { uid } = req.auth;
     const { displayName, photoURL } = req.body || {};
 
-    const patch = {
-      updatedAt: FieldValue.serverTimestamp(),
-    };
-    if (typeof displayName === "string") patch.displayName = displayName;
-    if (typeof photoURL === "string") patch.photoURL = photoURL;
-
-    await db.collection("users").doc(uid).set(patch, { merge: true });
-    const snap = await db.collection("users").doc(uid).get();
-    return res.json({ profile: snap.data() });
+    const result = await updateProfile(uid, { displayName, photoURL });
+    return res.json(result);
   } catch (err) {
     console.error("PROFILE UPDATE ERROR:", err);
     return res.status(500).json({ error: "profile_update_failed" });
