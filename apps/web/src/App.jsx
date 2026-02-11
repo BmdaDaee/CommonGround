@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import "./App.css";
+import { apiBaseUrl } from "./config/runtime";
 
 const DEFAULT_USER_ID = "test-user-1";
-const API_BASE = ""; // Vite proxy
+const API_BASE = apiBaseUrl; // default: Vite proxy
 
 function nowId() {
   return Math.random().toString(36).slice(2);

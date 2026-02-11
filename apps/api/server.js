@@ -4,8 +4,11 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 
+const { BACKEND_LOCK, isSupabaseLocked, getSessionStore } = require("./config/runtime");
+
 // Phase 1 foundation API (auth/pair/profile/chat)
-const v1Routes = require("./routes/v1");
+const enableFirebaseV1Routes = !isSupabaseLocked();
+const v1Routes = enableFirebaseV1Routes ? require("./routes/v1") : null;
 
 const {
   getOrCreateSession,
@@ -32,7 +35,16 @@ app.use(cors());
 app.use(express.json({ limit: "2mb" }));
 
 // Versioned API
-app.use("/v1", v1Routes);
+if (enableFirebaseV1Routes) {
+  app.use("/v1", v1Routes);
+} else {
+  app.use("/v1", (_req, res) => {
+    res.status(503).json({
+      error: "backend_locked_supabase",
+      message: "Firebase-backed /v1 routes are disabled when DEV_BACKEND_LOCK=supabase.",
+    });
+  });
+}
 
 const PORT = process.env.PORT || 3001;
 
@@ -307,5 +319,7 @@ if (typeof textToSpeech === "function") {
 app.listen(PORT, () => {
   console.log(`[API] listening on http://localhost:${PORT}`);
   console.log(`[AI] OPENAI_API_KEY present: ${!!process.env.OPENAI_API_KEY}`);
-  console.log(`[SESSIONS] store: ${process.env.SESSION_STORE || "memory"}`);
+  console.log(`[BACKEND] lock: ${BACKEND_LOCK || "none"}`);
+  console.log(`[SESSIONS] store: ${getSessionStore()}`);
+  console.log(`[V1] firebase routes enabled: ${enableFirebaseV1Routes}`);
 });
