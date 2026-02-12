@@ -2,7 +2,7 @@
 
 const express = require("express");
 const { requireAuth } = require("../../middleware/requireAuth");
-const { ensureUserDoc } = require("../../services/pairs");
+const { ensureUserProfile } = require("../../services/pairs.supabase");
 
 const router = express.Router();
 
@@ -13,7 +13,7 @@ const router = express.Router();
 router.post("/session", requireAuth, async (req, res) => {
   try {
     const { uid, token } = req.auth;
-    const user = await ensureUserDoc(uid, token);
+    const user = await ensureUserProfile(uid, token);
     return res.json({ uid, user });
   } catch (err) {
     console.error("SESSION ERROR:", err);

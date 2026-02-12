@@ -2,8 +2,7 @@
 
 const express = require("express");
 const { requireAuth } = require("../../middleware/requireAuth");
-const { db } = require("../../config/firebaseAdmin");
-const { FieldValue } = require("firebase-admin/firestore");
+const { supabase } = require("../../lib/supabaseAdmin");
 
 const router = express.Router();
 
@@ -15,9 +14,18 @@ router.use(requireAuth);
 router.get("/", async (req, res) => {
   try {
     const { uid } = req.auth;
-    const snap = await db.collection("users").doc(uid).get();
-    if (!snap.exists) return res.status(404).json({ error: "profile_not_found" });
-    return res.json({ profile: snap.data() });
+    
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", uid)
+      .single();
+
+    if (error || !profile) {
+      return res.status(404).json({ error: "profile_not_found" });
+    }
+
+    return res.json({ profile });
   } catch (err) {
     console.error("PROFILE READ ERROR:", err);
     return res.status(500).json({ error: "profile_read_failed" });
@@ -33,15 +41,23 @@ router.put("/", async (req, res) => {
     const { uid } = req.auth;
     const { displayName, photoURL } = req.body || {};
 
-    const patch = {
-      updatedAt: FieldValue.serverTimestamp(),
-    };
-    if (typeof displayName === "string") patch.displayName = displayName;
-    if (typeof photoURL === "string") patch.photoURL = photoURL;
+    const patch = {};
+    if (typeof displayName === "string") patch.display_name = displayName;
+    if (typeof photoURL === "string") patch.photo_url = photoURL;
 
-    await db.collection("users").doc(uid).set(patch, { merge: true });
-    const snap = await db.collection("users").doc(uid).get();
-    return res.json({ profile: snap.data() });
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .update(patch)
+      .eq("id", uid)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("PROFILE UPDATE ERROR:", error);
+      return res.status(500).json({ error: "profile_update_failed" });
+    }
+
+    return res.json({ profile });
   } catch (err) {
     console.error("PROFILE UPDATE ERROR:", err);
     return res.status(500).json({ error: "profile_update_failed" });

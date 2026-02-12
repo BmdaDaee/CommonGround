@@ -2,7 +2,7 @@
 
 const express = require("express");
 const { requireAuth } = require("../../middleware/requireAuth");
-const { sendMessage, listMessages } = require("../../services/chat");
+const { sendMessage, listMessages } = require("../../services/chat.supabase");
 
 const router = express.Router();
 

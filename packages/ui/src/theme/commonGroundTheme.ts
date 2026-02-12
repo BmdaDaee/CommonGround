@@ -1,8 +1,4 @@
-import colors from "../../tokens/colors.json";
-import typography from "../../tokens/typography.json";
-import toggleStates from "../../tokens/toggle-states.json";
-import radii from "../../tokens/radii.json";
-import shadows from "../../tokens/shadows.json";
+import { colors, typography, toggleStates, radii, shadows } from "../../tokens";
 
 export const commonGroundTheme = {
   name: "commonground" as const,

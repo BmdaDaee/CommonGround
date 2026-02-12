@@ -19,6 +19,8 @@
     "concurrently": "^9.0.0"
   },
   "dependencies": {
-    "firebase": "^12.8.0"
+    "@react-native-masked-view/masked-view": "0.3.2",
+    "firebase": "^12.8.0",
+    "supabase": "^2.76.8"
   }
 }

@@ -1,27 +1,31 @@
-import axios from 'axios';
-import { apiBaseURL, isSupabaseLocked } from './runtime';
+import { supabase } from "@/lib/supabase";
 
-export const api = axios.create({
-  baseURL: apiBaseURL,
-  timeout: 15000,
-});
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3001";
 
-api.interceptors.request.use(async (config) => {
-  if (isSupabaseLocked) return config;
-
-  const { firebaseAuth } = await import('./firebase');
-  const user = firebaseAuth.currentUser;
-  if (user) {
-    const token = await user.getIdToken();
-    config.headers = {
-      ...config.headers,
-      Authorization: `Bearer ${token}`,
-    };
+async function getAccessToken(): Promise<string | null> {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) {
+    console.warn("[api] getSession error:", error.message);
+    return null;
   }
-  return config;
-});
+  return data.session?.access_token ?? null;
+}
 
-export async function ensureSession() {
-  const res = await api.post('/v1/auth/session');
-  return res.data as { uid: string; user: any };
+export async function apiFetch(path: string, init: RequestInit = {}) {
+  const token = await getAccessToken();
+
+  const headers = new Headers(init.headers || {});
+  headers.set("Content-Type", "application/json");
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const res = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`[api] ${res.status} ${res.statusText} ${text}`);
+  }
+
+  const contentType = res.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) return res.json();
+  return res.text();
 }

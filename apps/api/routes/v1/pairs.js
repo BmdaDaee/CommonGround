@@ -2,7 +2,7 @@
 
 const express = require("express");
 const { requireAuth } = require("../../middleware/requireAuth");
-const { ensureUserDoc, createPair, joinPair, getMyPair, leaveActivePair } = require("../../services/pairs");
+const { ensureUserProfile, createPair, joinPair, getMyPair, leaveActivePair } = require("../../services/pairs.supabase");
 
 const router = express.Router();
 
@@ -15,7 +15,7 @@ router.use(requireAuth);
 router.post("/", async (req, res) => {
   try {
     const { uid, token } = req.auth;
-    await ensureUserDoc(uid, token);
+    await ensureUserProfile(uid, token);
     const result = await createPair(uid);
     return res.json(result);
   } catch (err) {
@@ -32,7 +32,7 @@ router.post("/", async (req, res) => {
 router.post("/join", async (req, res) => {
   try {
     const { uid, token } = req.auth;
-    await ensureUserDoc(uid, token);
+    await ensureUserProfile(uid, token);
     const { code } = req.body || {};
     if (!code || typeof code !== "string") return res.status(400).json({ error: "missing_code" });
     const result = await joinPair(uid, code.trim().toUpperCase());
@@ -50,7 +50,7 @@ router.post("/join", async (req, res) => {
 router.get("/me", async (req, res) => {
   try {
     const { uid, token } = req.auth;
-    await ensureUserDoc(uid, token);
+    await ensureUserProfile(uid, token);
     const result = await getMyPair(uid);
     return res.json(result);
   } catch (err) {
@@ -66,7 +66,7 @@ router.get("/me", async (req, res) => {
 router.post("/leave", async (req, res) => {
   try {
     const { uid, token } = req.auth;
-    await ensureUserDoc(uid, token);
+    await ensureUserProfile(uid, token);
     const result = await leaveActivePair(uid);
     return res.json(result);
   } catch (err) {
