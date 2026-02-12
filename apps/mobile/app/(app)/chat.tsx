@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList, SafeAreaView, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { v4 as uuidv4 } from "uuid";
 import { Mode, ModeToggle, ChatBubble } from "@cg/ui";
 import { useAuth } from "../../context/AuthContext";
 import { apiGet, apiPost } from "../../lib/api";
@@ -12,6 +11,10 @@ type ChatMessage = {
   createdAt: number;
   authorUid?: string;
 };
+
+function createMessageId() {
+  return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
 
 export default function ChatScreen() {
   const { user, pairId } = useAuth();
@@ -33,7 +36,7 @@ export default function ChatScreen() {
     const trimmed = text.trim();
     if (!trimmed) return;
 
-    const messageId = uuidv4();
+    const messageId = createMessageId();
     setText("");
 
     // Optimistic insert (idempotent server write makes retries safe)
@@ -42,7 +45,7 @@ export default function ChatScreen() {
       text: trimmed,
       authorType: "self",
       createdAt: Date.now(),
-      authorUid: user.uid
+      authorUid: user.id
     };
     setMessages((prev) => [...prev, optimistic]);
 
@@ -83,7 +86,7 @@ export default function ChatScreen() {
             author={
               item.authorType === "system"
                 ? "system"
-                : item.authorUid && item.authorUid === user?.uid
+                : item.authorUid && item.authorUid === user?.id
                 ? "self"
                 : "partner"
             }

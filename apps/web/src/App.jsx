@@ -4,9 +4,36 @@ import { apiBaseUrl } from "./config/runtime";
 
 const DEFAULT_USER_ID = "test-user-1";
 const API_BASE = apiBaseUrl; // default: Vite proxy
+const API_DEV_ORIGIN = "http://localhost:3001";
 
 function nowId() {
   return Math.random().toString(36).slice(2);
+}
+
+function buildApiErrorMessage(status, { data, text } = {}) {
+  const fromData = typeof data?.error === "string" ? data.error.trim() : "";
+  if (fromData) return fromData;
+
+  const fromText = typeof text === "string" ? text.trim() : "";
+  if (fromText) return fromText;
+
+  // Vite proxy returns an empty 500 when the API process is not running.
+  if (status === 500 && !API_BASE) {
+    return `API unavailable at ${API_DEV_ORIGIN}. Start backend with: npm -w apps/api run dev`;
+  }
+
+  return `HTTP ${status}`;
+}
+
+async function readJsonOrText(res) {
+  const text = await res.text().catch(() => "");
+  if (!text) return { data: null, text: "" };
+
+  try {
+    return { data: JSON.parse(text), text };
+  } catch {
+    return { data: null, text };
+  }
 }
 
 function Pill({ children }) {
@@ -105,15 +132,20 @@ function VibeDial({ vibe, setVibe }) {
  * Minimal SSE parser for "event: token" / "event: done" / "event: error"
  */
 async function postStream(url, body, { onToken, onDone, onError }) {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error(`API unavailable at ${API_DEV_ORIGIN}. Start backend with: npm -w apps/api run dev`);
+  }
 
   if (!res.ok || !res.body) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
+    const payload = await readJsonOrText(res);
+    throw new Error(buildApiErrorMessage(res.status, payload));
   }
 
   const reader = res.body.getReader();
@@ -254,14 +286,20 @@ export default function App() {
   };
 
   const sendNonStream = async (text) => {
-    const res = await fetch(`${API_BASE}/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, message: text }),
-    });
+    let res;
+    try {
+      res = await fetch(`${API_BASE}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, message: text }),
+      });
+    } catch {
+      throw new Error(`API unavailable at ${API_DEV_ORIGIN}. Start backend with: npm -w apps/api run dev`);
+    }
 
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+    const payload = await readJsonOrText(res);
+    if (!res.ok) throw new Error(buildApiErrorMessage(res.status, payload));
+    const data = payload.data || {};
 
     setSessionId(data.sessionId || "");
     setToneState(data.toneState || null);
@@ -331,14 +369,20 @@ export default function App() {
     setError("");
 
     try {
-      const res = await fetch(`${API_BASE}/ai`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, task, context: toolText, vibe }),
-      });
+      let res;
+      try {
+        res = await fetch(`${API_BASE}/ai`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, task, context: toolText, vibe }),
+        });
+      } catch {
+        throw new Error(`API unavailable at ${API_DEV_ORIGIN}. Start backend with: npm -w apps/api run dev`);
+      }
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data?.ok === false) throw new Error(data?.error || `HTTP ${res.status}`);
+      const payload = await readJsonOrText(res);
+      const data = payload.data || {};
+      if (!res.ok || data?.ok === false) throw new Error(buildApiErrorMessage(res.status, payload));
 
       if (data?.expectsJson && data?.parsed) setToolJson(data.parsed);
       setToolOut(data?.output || "");
