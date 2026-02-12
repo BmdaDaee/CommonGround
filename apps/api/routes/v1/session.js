@@ -8,7 +8,7 @@ const router = express.Router();
 
 /**
  * POST /v1/auth/session
- * Verifies Firebase ID token (via middleware) and ensures user doc exists.
+ * Verifies Supabase access token and ensures profile exists.
  */
 router.post("/session", requireAuth, async (req, res) => {
   try {

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ -z "${AUTH_TOKEN:-}" || -z "${PAIR_ID:-}" ]]; then
-  echo "Usage: AUTH_TOKEN=<firebase_id_token> PAIR_ID=<pair_id> [BASE_URL=http://localhost:3001] $0" >&2
+  echo "Usage: AUTH_TOKEN=<supabase_access_token> PAIR_ID=<pair_id> [BASE_URL=http://localhost:3001] $0" >&2
   exit 1
 fi
 

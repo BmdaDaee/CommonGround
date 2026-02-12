@@ -1,0 +1,18 @@
+{
+  "commonground": {
+    "bgDefault": "#FFFFF2",
+    "bgActive": "#92EAD9",
+    "handle": "#FFFFFF",
+    "border": "#92EAD9",
+    "textDefault": "#92EAD9",
+    "textActive": "#FFFFF2"
+  },
+  "deeplyus": {
+    "bgDefault": "#2A1240",
+    "bgActive": "#8B0000",
+    "handle": "#FF5CA2",
+    "border": "#E4C95D",
+    "textDefault": "#FF5CA2",
+    "textActive": "#FFFFF2"
+  }
+}

@@ -197,7 +197,6 @@ yarn-error.log
 .env.development
 .env.production
 secrets/
-firebase-admin-key.json
 
 # System files
 .DS_Store
@@ -226,7 +225,6 @@ fi
 
 # 7. Gentle reminder about secrets
 echo "🔐 Reminder: make sure you have:"
-echo "   - .env (with OPENAI_API_KEY, FIREBASE_PROJECT_ID, etc.)"
-echo "   - secrets/firebase-admin-key.json (NOT committed to git)"
+echo "   - .env (with OPENAI_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)"
 
 echo "✅ CommonGround-AI setup complete."

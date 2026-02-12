@@ -1,2 +1,21 @@
-EXPO_PUBLIC_SUPABASE_URL=https://tlmtewyvzirdqjdlivis.supabase.co
-EXPO_PUBLIC_SUPABASE_KEY=sb_publishable_I9C8wpimPtGEOvaATngfkg_PxmjXaPR
+{
+  "commonground": {
+    "background": "#FFFFF2",
+    "mintAqua": "#92EAD9",
+    "sunbeam": "#FFDF7B",
+    "blushPink": "#FFD0CE",
+    "paleMint": "#C1FFF0",
+    "textPrimary": "#1F2933",
+    "textSecondary": "#4B5563"
+  },
+  "deeplyus": {
+    "background": "#9966CC",
+    "garnet": "#8B0000",
+    "amethyst": "#9966CC",
+    "spinel": "#FF5CA2",
+    "citrine": "#E4C95D",
+    "tourmaline": "#3CB371",
+    "textPrimary": "#FDFDFD",
+    "textSecondary": "#E5E7EB"
+  }
+}

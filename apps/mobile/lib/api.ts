@@ -1,6 +1,5 @@
 import { supabase } from "@/lib/supabase";
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:3001";
+import { apiBaseURL } from "@/lib/runtime";
 
 async function getAccessToken(): Promise<string | null> {
   const { data, error } = await supabase.auth.getSession();
@@ -16,9 +15,11 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
 
   const headers = new Headers(init.headers || {});
   headers.set("Content-Type", "application/json");
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
 
-  const res = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  const res = await fetch(`${apiBaseURL}${path}`, { ...init, headers });
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -26,6 +27,47 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   }
 
   const contentType = res.headers.get("content-type") || "";
-  if (contentType.includes("application/json")) return res.json();
+  if (contentType.includes("application/json")) {
+    return res.json();
+  }
+
   return res.text();
 }
+
+export async function apiGet(path: string) {
+  return apiFetch(path, { method: "GET" });
+}
+
+export async function apiPost(path: string, body?: unknown) {
+  return apiFetch(path, {
+    method: "POST",
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+}
+
+export async function apiPut(path: string, body?: unknown) {
+  return apiFetch(path, {
+    method: "PUT",
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+}
+
+export async function apiDelete(path: string) {
+  return apiFetch(path, { method: "DELETE" });
+}
+
+// Compatibility adapter for existing axios-style calls in older screens.
+export const api = {
+  async get(path: string) {
+    return { data: await apiGet(path) };
+  },
+  async post(path: string, body?: unknown) {
+    return { data: await apiPost(path, body) };
+  },
+  async put(path: string, body?: unknown) {
+    return { data: await apiPut(path, body) };
+  },
+  async delete(path: string) {
+    return { data: await apiDelete(path) };
+  },
+};
