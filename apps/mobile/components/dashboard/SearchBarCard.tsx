@@ -1,53 +1,96 @@
-import { StyleSheet } from 'react-native';
+import React from 'react';
+import * as UIKit from '@cg/ui';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-import { Card, CGText, Row, Stack } from './primitives';
-
-export type SearchBarCardProps = {
-  placeholder?: string;
+type PrimitiveProps = {
+  children?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
 };
 
-const DEFAULT_PLACEHOLDER = 'Search rituals, messages, or plans';
+const primitives = UIKit as unknown as {
+  Row?: React.ComponentType<PrimitiveProps>;
+  Stack?: React.ComponentType<PrimitiveProps>;
+};
 
-export function SearchBarCard({ placeholder = DEFAULT_PLACEHOLDER }: SearchBarCardProps) {
-  const colorScheme = useColorScheme() ?? 'light';
-  const colors = Colors[colorScheme];
+const Row = primitives.Row ?? View;
+const Stack = primitives.Stack ?? View;
+
+const CARD_RADIUS = 16;
+
+const DEFAULT_SEARCH_DATA = {
+  title: 'Search',
+  placeholder: 'Search rituals, messages, or plans',
+  value: '',
+};
+
+const noop = () => {};
+
+export type SearchBarCardProps = {
+  onPressSearch?: () => void;
+  placeholder?: string;
+  title?: string;
+  value?: string;
+};
+
+export function SearchBarCard({
+  onPressSearch = noop,
+  placeholder = DEFAULT_SEARCH_DATA.placeholder,
+  title = DEFAULT_SEARCH_DATA.title,
+  value = DEFAULT_SEARCH_DATA.value,
+}: SearchBarCardProps) {
+  const safeOnPressSearch = typeof onPressSearch === 'function' ? onPressSearch : noop;
+  const safeTitle = typeof title === 'string' ? title : DEFAULT_SEARCH_DATA.title;
+  const safePlaceholder =
+    typeof placeholder === 'string' ? placeholder : DEFAULT_SEARCH_DATA.placeholder;
+  const safeValue = typeof value === 'string' ? value : DEFAULT_SEARCH_DATA.value;
+  const displayText = safeValue.trim().length > 0 ? safeValue : safePlaceholder;
 
   return (
-    <Card>
-      <Stack>
-        <CGText style={styles.title}>Search</CGText>
-        <Row
-          style={[
-            styles.searchInput,
-            {
-              backgroundColor: colors.background,
-              borderColor: colors.icon,
-            },
-          ]}>
-          <CGText numberOfLines={1} style={[styles.searchPlaceholder, { color: colors.icon }]}>
-            {placeholder}
-          </CGText>
+    <View style={styles.card}>
+      <Stack style={styles.stack}>
+        <Row style={styles.headerRow}>
+          <Text style={styles.title}>{safeTitle}</Text>
         </Row>
+        <Pressable accessibilityRole="button" onPress={safeOnPressSearch} style={styles.searchButton}>
+          <Text
+            numberOfLines={1}
+            style={[styles.searchText, safeValue.trim().length === 0 && styles.placeholder]}>
+            {displayText}
+          </Text>
+        </Pressable>
       </Stack>
-    </Card>
+    </View>
   );
 }
 
 export default SearchBarCard;
 
 const styles = StyleSheet.create({
-  searchInput: {
+  card: {
+    borderRadius: CARD_RADIUS,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 16,
+    width: '100%',
+  },
+  headerRow: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  placeholder: {
+    opacity: 0.6,
+  },
+  searchButton: {
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     minHeight: 44,
+    justifyContent: 'center',
     paddingHorizontal: 12,
-    width: '100%',
   },
-  searchPlaceholder: {
+  searchText: {
     fontSize: 14,
+  },
+  stack: {
+    gap: 12,
   },
   title: {
     fontSize: 17,

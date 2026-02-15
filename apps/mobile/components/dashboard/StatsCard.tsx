@@ -1,92 +1,144 @@
-import { StyleSheet, View } from 'react-native';
+import React from 'react';
+import * as UIKit from '@cg/ui';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-import { Badge, Card, CGText, Divider, Row, Stack } from './primitives';
-
-export type StatsCardProps = {
-  daysPaired?: number;
-  sparklineValues?: number[];
+type PrimitiveProps = {
+  children?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
 };
 
-const MOCK_SPARKLINE_VALUES = [5, 7, 6, 8, 9, 7, 10];
+const primitives = UIKit as unknown as {
+  Divider?: React.ComponentType<PrimitiveProps>;
+  Row?: React.ComponentType<PrimitiveProps>;
+  Stack?: React.ComponentType<PrimitiveProps>;
+};
+
+const Divider = primitives.Divider ?? View;
+const Row = primitives.Row ?? View;
+const Stack = primitives.Stack ?? View;
+
+const CARD_RADIUS = 16;
+
+export type StatsMetric = {
+  id: string;
+  label: string;
+  value: string;
+};
+
+const DEFAULT_STATS_DATA = {
+  title: 'Stats',
+  trendValues: [4, 6, 5, 7, 8, 7, 9],
+};
+
+const DEFAULT_METRICS: StatsMetric[] = [
+  { id: 'days-paired', label: 'Days paired', value: '128' },
+  { id: 'shared-rituals', label: 'Shared rituals', value: '42' },
+  { id: 'pulse-streak', label: 'Pulse streak', value: '11' },
+];
+
+const noop = (_metric: StatsMetric) => {};
+
+export type StatsCardProps = {
+  metrics?: StatsMetric[];
+  onPressMetric?: (metric: StatsMetric) => void;
+  title?: string;
+  trendValues?: number[];
+};
 
 export function StatsCard({
-  daysPaired = 128,
-  sparklineValues = MOCK_SPARKLINE_VALUES,
+  metrics = DEFAULT_METRICS,
+  onPressMetric = noop,
+  title = DEFAULT_STATS_DATA.title,
+  trendValues = DEFAULT_STATS_DATA.trendValues,
 }: StatsCardProps) {
-  const colorScheme = useColorScheme() ?? 'light';
-  const colors = Colors[colorScheme];
-  const safeSparklineValues = sparklineValues.length > 0 ? sparklineValues : MOCK_SPARKLINE_VALUES;
-  const maxValue = Math.max(...safeSparklineValues, 1);
+  const safeOnPressMetric = typeof onPressMetric === 'function' ? onPressMetric : noop;
+  const safeTitle = typeof title === 'string' ? title : DEFAULT_STATS_DATA.title;
+  const candidateMetrics = Array.isArray(metrics) ? metrics : [];
+  const candidateTrendValues = Array.isArray(trendValues) ? trendValues : [];
+  const safeMetrics = candidateMetrics.length > 0 ? candidateMetrics : DEFAULT_METRICS;
+  const safeTrendValues =
+    candidateTrendValues.length > 0 ? candidateTrendValues : DEFAULT_STATS_DATA.trendValues;
+  const maxTrend = Math.max(...safeTrendValues, 1);
 
   return (
-    <Card>
-      <Stack>
-        <Row style={styles.header}>
-          <CGText style={styles.title}>Stats</CGText>
-          <Badge label="Connection" />
+    <View style={styles.card}>
+      <Stack style={styles.stack}>
+        <Text style={styles.title}>{safeTitle}</Text>
+        <Row style={styles.metricsRow}>
+          {safeMetrics.map((metric) => (
+            <Pressable
+              accessibilityRole="button"
+              key={metric.id}
+              onPress={() => safeOnPressMetric(metric)}
+              style={styles.metricItem}>
+              <Text style={styles.metricValue}>{metric.value}</Text>
+              <Text style={styles.metricLabel}>{metric.label}</Text>
+            </Pressable>
+          ))}
         </Row>
-        <Row style={styles.daysRow}>
-          <CGText style={styles.daysValue}>{daysPaired}</CGText>
-          <CGText style={styles.daysLabel}>days paired</CGText>
-        </Row>
-        <Divider />
-        <Row style={styles.sparklineRow}>
-          {safeSparklineValues.map((value, index) => {
-            const normalizedHeight = 10 + Math.round((value / maxValue) * 36);
-            const isCurrent = index === safeSparklineValues.length - 1;
+        <Divider style={styles.divider} />
+        <Row style={styles.trendRow}>
+          {safeTrendValues.map((value, index) => {
+            const height = 10 + Math.round((value / maxTrend) * 26);
+            const isLatest = index === safeTrendValues.length - 1;
 
-            return (
-              <View
-                key={`spark-${index}-${value}`}
-                style={[
-                  styles.sparkBar,
-                  {
-                    backgroundColor: isCurrent ? colors.tint : colors.icon,
-                    height: normalizedHeight,
-                    opacity: isCurrent ? 1 : 0.5,
-                  },
-                ]}
-              />
-            );
+            return <View key={`trend-${index}-${value}`} style={[styles.trendBar, { height, opacity: isLatest ? 1 : 0.55 }]} />;
           })}
         </Row>
       </Stack>
-    </Card>
+    </View>
   );
 }
 
 export default StatsCard;
 
 const styles = StyleSheet.create({
-  daysLabel: {
-    fontSize: 14,
-    opacity: 0.8,
+  card: {
+    borderRadius: CARD_RADIUS,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 16,
+    width: '100%',
   },
-  daysRow: {
-    alignItems: 'baseline',
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    width: '100%',
   },
-  daysValue: {
-    fontSize: 34,
-    fontWeight: '700',
-    lineHeight: 38,
-  },
-  header: {
-    justifyContent: 'space-between',
-  },
-  sparkBar: {
-    borderRadius: 4,
+  metricItem: {
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
     flex: 1,
-    minHeight: 10,
+    minHeight: 64,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
-  sparklineRow: {
-    alignItems: 'flex-end',
-    gap: 6,
+  metricLabel: {
+    fontSize: 12,
+    opacity: 0.7,
+  },
+  metricValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  metricsRow: {
+    alignItems: 'stretch',
+    gap: 8,
+  },
+  stack: {
+    gap: 12,
   },
   title: {
     fontSize: 17,
     fontWeight: '600',
+  },
+  trendBar: {
+    borderRadius: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    flex: 1,
+    minHeight: 10,
+  },
+  trendRow: {
+    alignItems: 'flex-end',
+    gap: 6,
   },
 });

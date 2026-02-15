@@ -1,42 +1,102 @@
-import { StyleSheet } from 'react-native';
+import React from 'react';
+import * as UIKit from '@cg/ui';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { Button, Card, CGText, Row, Stack } from './primitives';
-
-export type PartnerQuickActionsCardProps = {
-  onMessage?: () => void;
-  onPlan?: () => void;
-  onSync?: () => void;
+type PrimitiveProps = {
+  children?: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
 };
 
-const noopAction = () => {};
+const primitives = UIKit as unknown as {
+  Row?: React.ComponentType<PrimitiveProps>;
+  Stack?: React.ComponentType<PrimitiveProps>;
+};
+
+const Row = primitives.Row ?? View;
+const Stack = primitives.Stack ?? View;
+
+const CARD_RADIUS = 16;
+
+export type QuickAction = {
+  id: string;
+  label: string;
+};
+
+const DEFAULT_ACTIONS: QuickAction[] = [
+  { id: 'message', label: 'Message' },
+  { id: 'plan', label: 'Plan Date' },
+  { id: 'sync', label: 'Sync Check-In' },
+];
+
+const noop = (_action: QuickAction) => {};
+
+export type PartnerQuickActionsCardProps = {
+  actions?: QuickAction[];
+  onPressAction?: (action: QuickAction) => void;
+  title?: string;
+};
 
 export function PartnerQuickActionsCard({
-  onMessage = noopAction,
-  onPlan = noopAction,
-  onSync = noopAction,
+  actions = DEFAULT_ACTIONS,
+  onPressAction = noop,
+  title = 'Partner Quick Actions',
 }: PartnerQuickActionsCardProps) {
+  const safeOnPressAction = typeof onPressAction === 'function' ? onPressAction : noop;
+  const safeTitle = typeof title === 'string' ? title : 'Partner Quick Actions';
+  const candidateActions = Array.isArray(actions) ? actions : [];
+  const safeActions = candidateActions.length > 0 ? candidateActions : DEFAULT_ACTIONS;
+
   return (
-    <Card>
-      <Stack>
-        <CGText style={styles.title}>Partner Quick Actions</CGText>
-        <Row style={styles.actionsRow}>
-          <Button onPress={onMessage} style={styles.actionButton} title="Message" />
-          <Button onPress={onPlan} style={styles.actionButton} title="Plan" />
-          <Button onPress={onSync} style={styles.actionButton} title="Sync" />
+    <View style={styles.card}>
+      <Stack style={styles.stack}>
+        <Text style={styles.title}>{safeTitle}</Text>
+        <Row style={styles.actionRow}>
+          {safeActions.map((action) => (
+            <Pressable
+              accessibilityRole="button"
+              key={action.id}
+              onPress={() => safeOnPressAction(action)}
+              style={styles.actionChip}>
+              <Text numberOfLines={1} style={styles.actionText}>
+                {action.label}
+              </Text>
+            </Pressable>
+          ))}
         </Row>
       </Stack>
-    </Card>
+    </View>
   );
 }
 
 export default PartnerQuickActionsCard;
 
 const styles = StyleSheet.create({
-  actionButton: {
-    flex: 1,
+  actionChip: {
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'center',
+    minHeight: 40,
+    minWidth: 96,
+    paddingHorizontal: 10,
   },
-  actionsRow: {
-    alignItems: 'stretch',
+  actionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  actionText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  card: {
+    borderRadius: CARD_RADIUS,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 16,
+    width: '100%',
+  },
+  stack: {
+    gap: 12,
   },
   title: {
     fontSize: 17,
