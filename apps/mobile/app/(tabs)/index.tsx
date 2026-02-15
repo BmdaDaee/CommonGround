@@ -1,6 +1,6 @@
 import React from "react";
-import { Screen, Stack } from "@cg/ui";
 
+import { Screen, Stack } from "../../components/dashboard/primitives";
 import {
   SearchBarCard,
   TodaysPulseCard,
