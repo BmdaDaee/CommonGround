@@ -1,35 +1,38 @@
 const express = require("express");
+const { requireAuth } = require("../../middleware/requireAuth");
+
 const router = express.Router();
 
-const { requireAuth } = require("../../middleware/requireAuth");
-const { supabaseAdmin } = require("../../lib/supabaseAdmin");
+const pulseByPair = new Map();
 
-router.use(requireAuth);
+function nowIso() {
+  return new Date().toISOString();
+}
 
-/**
- * POST /v1/pulse
- * body: { pairId: string, mood: string }
- */
-router.post("/", async (req, res) => {
-  try {
-    const { pairId, mood } = req.body || {};
-    if (!pairId || !mood) return res.status(400).json({ error: "pairId and mood are required" });
+router.get("/pulse", requireAuth, async (req, res) => {
+  const pairId = (req.query.pairId || "").trim();
+  if (!pairId) return res.status(400).json({ error: "missing_pair_id" });
 
-    const { uid, token } = req.auth || {};
-    if (!uid) return res.status(401).json({ error: "Not authenticated" });
+  const pulse = pulseByPair.get(pairId) || null;
+  return res.json({ pulse });
+});
 
-    const day = new Date().toISOString().slice(0, 10);
+router.post("/pulse", requireAuth, async (req, res) => {
+  const pairId = (req.body?.pairId || "").trim();
+  const mood = (req.body?.mood || "").trim();
 
-    const { error } = await supabaseAdmin
-      .from("pair_pulses")
-      .upsert({ pair_id: pairId, user_id: uid, mood, day }, { onConflict: "pair_id,user_id,day" });
+  if (!pairId) return res.status(400).json({ error: "missing_pair_id" });
+  if (!mood) return res.status(400).json({ error: "missing_mood" });
 
-    if (error) return res.status(500).json({ error: error.message });
+  const pulse = {
+    pairId,
+    mood,
+    updatedAt: nowIso(),
+    userId: req.user?.id || null,
+  };
 
-    return res.json({ ok: true });
-  } catch (e) {
-    return res.status(500).json({ error: e?.message || "Unknown error" });
-  }
+  pulseByPair.set(pairId, pulse);
+  return res.json({ ok: true, pulse });
 });
 
 module.exports = router;
