@@ -1,55 +1,88 @@
-// routes/v1/chat.js
-
 const express = require("express");
-const { requireAuth } = require("../../middleware/requireAuth");
-const { sendMessage, listMessages } = require("../../services/chat.supabase");
-
+const crypto = require("crypto");
 const router = express.Router();
+
+const { requireAuth } = require("../../middleware/requireAuth");
+const { supabase } = require("../../lib/supabaseAdmin");
 
 router.use(requireAuth);
 
-/**
- * POST /v1/chat/:pairId/send
- * body: { messageId, clientId?, text }
- */
 router.post("/:pairId/send", async (req, res) => {
   try {
-    const { uid } = req.auth;
-    const { pairId } = req.params;
-    const { messageId, clientId, text } = req.body || {};
+    const pairId = req.params.pairId;
+    const { messageId, text } = req.body || {};
 
-    if (!messageId || typeof messageId !== "string") return res.status(400).json({ error: "missing_messageId" });
-    if (!text || typeof text !== "string") return res.status(400).json({ error: "missing_text" });
+    const trimmed = String(text || "").trim();
+    if (!pairId) return res.status(400).json({ error: "missing_pair_id" });
+    if (!trimmed) return res.status(400).json({ error: "missing_text" });
 
-    const message = await sendMessage({
-      pairId,
-      messageId,
-      clientId: clientId || null,
-      senderId: uid,
-      text,
+    const serverId = crypto.randomUUID();
+    const clientId = String(messageId || serverId);
+
+    const payload = {
+      id: serverId,
+      client_id: clientId,
+      pair_id: pairId,
+      sender_id: req.auth.uid,
+      text: trimmed,
+      server_created_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from("messages")
+      .insert(payload)
+      .select("id, client_id, text, sender_id, server_created_at, created_at")
+      .single();
+
+    if (error) {
+      console.error("CHAT SEND ERROR:", error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    return res.json({
+      message: {
+        id: data.client_id || data.id,
+        text: data.text,
+        authorUid: data.sender_id,
+        createdAt: new Date(data.server_created_at || data.created_at).getTime(),
+      },
     });
-
-    return res.json({ message });
   } catch (err) {
     console.error("CHAT SEND ERROR:", err);
-    return res.status(err.status || 500).json({ error: err.message || "send_failed" });
+    return res.status(500).json({ error: "send_failed" });
   }
 });
 
-/**
- * GET /v1/chat/:pairId/list?limit=30&before=<millis>
- */
 router.get("/:pairId/list", async (req, res) => {
   try {
-    const { uid } = req.auth;
-    const { pairId } = req.params;
-    const { limit, before } = req.query || {};
+    const pairId = req.params.pairId;
+    const limit = Math.min(parseInt(String(req.query.limit || "50"), 10) || 50, 200);
 
-    const result = await listMessages({ pairId, uid, limit, before });
-    return res.json(result);
+    if (!pairId) return res.status(400).json({ error: "missing_pair_id" });
+
+    const { data, error } = await supabase
+      .from("messages")
+      .select("id, client_id, text, sender_id, server_created_at, created_at")
+      .eq("pair_id", pairId)
+      .order("server_created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error("CHAT LIST ERROR:", error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    const messages = (data || []).map((m) => ({
+      id: m.client_id || m.id,
+      text: m.text,
+      authorUid: m.sender_id,
+      createdAt: new Date(m.server_created_at || m.created_at).getTime(),
+    }));
+
+    return res.json({ messages, nextBefore: null });
   } catch (err) {
     console.error("CHAT LIST ERROR:", err);
-    return res.status(err.status || 500).json({ error: err.message || "list_failed" });
+    return res.status(500).json({ error: "list_failed" });
   }
 });
 
