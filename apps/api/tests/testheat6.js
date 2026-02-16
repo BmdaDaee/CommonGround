@@ -1,5 +1,5 @@
 // testHeat6.js
-// Stress-test for Heat Level 6 Shantell in CONFLICT mode
+// Stress-test for Heat Level 6 BentlyAI in CONFLICT mode
 
 require("dotenv").config();
 const { askPersona, MODES } = require("./services/ai");
@@ -51,7 +51,7 @@ Now I'm sitting here wondering if I'm actually the problem, or if I'm losing my 
 
     const mode = MODES.CONFLICT;
 
-    console.log("🔥 Running Heat 6 Stress Test for Shantell...");
+    console.log("🔥 Running Heat 6 Stress Test for BentlyAI...");
     console.log("Mode:", mode);
     console.log("User message:\n", userMessage, "\n");
 

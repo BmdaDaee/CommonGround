@@ -1,105 +1,71 @@
-import React from 'react';
-import * as UIKit from '@cg/ui';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-
-type PrimitiveProps = {
-  children?: React.ReactNode;
-  style?: StyleProp<ViewStyle>;
-};
-
-const primitives = UIKit as unknown as {
-  Row?: React.ComponentType<PrimitiveProps>;
-  Stack?: React.ComponentType<PrimitiveProps>;
-};
-
-const Row = primitives.Row ?? View;
-const Stack = primitives.Stack ?? View;
-
-const CARD_RADIUS = 16;
-
-export type QuickAction = {
-  id: string;
-  label: string;
-};
-
-const DEFAULT_ACTIONS: QuickAction[] = [
-  { id: 'message', label: 'Message' },
-  { id: 'plan', label: 'Plan Date' },
-  { id: 'sync', label: 'Sync Check-In' },
-];
-
-const noop = (_action: QuickAction) => {};
+import React from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { CGText, Row, Stack, Divider } from "./primitives";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 
 export type PartnerQuickActionsCardProps = {
-  actions?: QuickAction[];
-  onPressAction?: (action: QuickAction) => void;
   title?: string;
+  onMessage?: () => void;
+  onPlan?: () => void;
+  onSync?: () => void;
 };
 
-export function PartnerQuickActionsCard({
-  actions = DEFAULT_ACTIONS,
-  onPressAction = noop,
-  title = 'Partner Quick Actions',
+export default function PartnerQuickActionsCard({
+  title = "Quick actions",
+  onMessage = () => {},
+  onPlan = () => {},
+  onSync = () => {},
 }: PartnerQuickActionsCardProps) {
-  const safeOnPressAction = typeof onPressAction === 'function' ? onPressAction : noop;
-  const safeTitle = typeof title === 'string' ? title : 'Partner Quick Actions';
-  const candidateActions = Array.isArray(actions) ? actions : [];
-  const safeActions = candidateActions.length > 0 ? candidateActions : DEFAULT_ACTIONS;
+  const scheme = useColorScheme();
+  const theme = Colors[scheme ?? "light"];
+
+  const tileBase = { backgroundColor: theme.card, borderColor: theme.icon + "22" };
 
   return (
-    <View style={styles.card}>
-      <Stack style={styles.stack}>
-        <Text style={styles.title}>{safeTitle}</Text>
-        <Row style={styles.actionRow}>
-          {safeActions.map((action) => (
-            <Pressable
-              accessibilityRole="button"
-              key={action.id}
-              onPress={() => safeOnPressAction(action)}
-              style={styles.actionChip}>
-              <Text numberOfLines={1} style={styles.actionText}>
-                {action.label}
-              </Text>
-            </Pressable>
-          ))}
+    <View style={[styles.card, { backgroundColor: theme.background, borderColor: theme.icon + "22" }]}>
+      <Stack gap={10}>
+        <CGText style={[styles.title, { color: theme.text }]}>{title}</CGText>
+        <Divider opacity={0.25} />
+
+        <Row gap={12} wrap>
+          <Pressable onPress={onMessage} style={[styles.tile, tileBase]} accessibilityRole="button">
+            <CGText style={styles.emoji}>💬</CGText>
+            <CGText style={[styles.tileLabel, { color: theme.text }]}>Message</CGText>
+          </Pressable>
+
+          <Pressable onPress={onPlan} style={[styles.tile, tileBase]} accessibilityRole="button">
+            <CGText style={styles.emoji}>📅</CGText>
+            <CGText style={[styles.tileLabel, { color: theme.text }]}>Plan</CGText>
+          </Pressable>
+
+          <Pressable onPress={onSync} style={[styles.tile, tileBase]} accessibilityRole="button">
+            <CGText style={styles.emoji}>🔄</CGText>
+            <CGText style={[styles.tileLabel, { color: theme.text }]}>Sync</CGText>
+          </Pressable>
         </Row>
       </Stack>
     </View>
   );
 }
 
-export default PartnerQuickActionsCard;
-
 const styles = StyleSheet.create({
-  actionChip: {
-    alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    justifyContent: 'center',
-    minHeight: 40,
-    minWidth: 96,
-    paddingHorizontal: 10,
+  card: {
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
   },
-  actionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  title: { fontSize: 16, fontWeight: "900" },
+  tile: {
+    flexGrow: 1,
+    minWidth: 110,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    alignItems: "center",
     gap: 8,
   },
-  actionText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  card: {
-    borderRadius: CARD_RADIUS,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 16,
-    width: '100%',
-  },
-  stack: {
-    gap: 12,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '600',
-  },
+  emoji: { fontSize: 28 },
+  tileLabel: { fontSize: 13, fontWeight: "800" },
 });

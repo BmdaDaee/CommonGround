@@ -110,8 +110,8 @@ async function ensureUserProfile(userId, overrides = {}) {
  * Returns { pairId, code }
  */
 async function createPair(userId) {
-  const pairId = randomId("pair");
-  const code = await generateJoinCode();
+  const pairId = crypto.randomUUID();
+const code = await generateJoinCode();
 
   const { data: profile } = await supabase
     .from("profiles")

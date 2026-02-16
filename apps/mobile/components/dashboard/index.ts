@@ -1,6 +1,6 @@
-export * from './PartnerQuickActionsCard';
-export * from './RecentActivityFeedCard';
-export * from './SearchBarCard';
-export * from './SharedRitualCard';
-export * from './StatsCard';
-export * from './TodaysPulseCard';
+export { default as SearchBarCard } from "./SearchBarCard";
+export { default as TodaysPulseCard } from "./TodaysPulseCard";
+export { default as SharedRitualCard } from "./SharedRitualCard";
+export { default as PartnerQuickActionsCard } from "./PartnerQuickActionsCard";
+export { default as RecentActivityFeedCard } from "./RecentActivityFeedCard";
+export { default as StatsCard } from "./StatsCard";

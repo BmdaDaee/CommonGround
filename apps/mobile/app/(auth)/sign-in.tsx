@@ -1,58 +1,146 @@
-import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { supabase } from "@/lib/supabase";
+import React, { useMemo, useState } from "react";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useRouter } from "expo-router";
+
+import { supabase } from "../../lib/supabase";
+import { Colors } from "../../constants/theme";
+import { useColorScheme } from "../../hooks/use-color-scheme";
 
 export default function SignInScreen() {
+  const router = useRouter();
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  async function onSignIn() {
-    setLoading(true);
-    setError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) setError(error.message);
+  const canSubmit = useMemo(() => {
+    return email.trim().length > 3 && password.length >= 6 && !busy;
+  }, [email, password, busy]);
+
+  async function signIn() {
+    const e = email.trim();
+    if (!e || !password) return;
+
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: e,
+        password,
+      });
+
+      if (error) {
+        Alert.alert("Sign in failed", error.message);
+        return;
+      }
+
+      if (!data.session) {
+        Alert.alert(
+          "Sign in incomplete",
+          "No session returned. If email confirmation is enabled, confirm the email first."
+        );
+        return;
+      }
+
+      router.replace("/(onboarding)/pair");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  async function onSignUp() {
-    setLoading(true);
-    setError(null);
-    const { error } = await supabase.auth.signUp({ email, password });
-    setLoading(false);
-    if (error) setError(error.message);
+  async function signUp() {
+    const e = email.trim();
+    if (!e || !password) return;
+
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: e,
+        password,
+      });
+
+      if (error) {
+        Alert.alert("Sign up failed", error.message);
+        return;
+      }
+
+      if (!data.session) {
+        Alert.alert(
+          "Check your email",
+          "Account created. If email confirmations are enabled, confirm your email before signing in."
+        );
+        return;
+      }
+
+      router.replace("/(onboarding)/pair");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Sign in</Text>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Text style={[styles.title, { color: theme.text }]}>CommonGround</Text>
+      <Text style={{ color: theme.icon, marginBottom: 16 }}>Sign in to continue</Text>
 
       <TextInput
-        style={styles.input}
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="email-address"
+        placeholder="Email"
+        placeholderTextColor={theme.tabIconDefault}
+        style={[
+          styles.input,
+          { borderColor: theme.tabIconDefault, color: theme.text },
+        ]}
       />
 
       <TextInput
-        style={styles.input}
-        placeholder="Password"
-        secureTextEntry
         value={password}
         onChangeText={setPassword}
+        secureTextEntry
+        placeholder="Password"
+        placeholderTextColor={theme.tabIconDefault}
+        style={[
+          styles.input,
+          { borderColor: theme.tabIconDefault, color: theme.text },
+        ]}
       />
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <Pressable style={styles.button} onPress={onSignIn} disabled={loading}>
-        {loading ? <ActivityIndicator /> : <Text style={styles.buttonText}>Sign in</Text>}
+      <Pressable
+        onPress={signIn}
+        disabled={!canSubmit}
+        style={[
+          styles.button,
+          {
+            backgroundColor: theme.tint,
+            opacity: canSubmit ? 1 : 0.5,
+          },
+        ]}
+      >
+        <Text style={{ color: theme.background, fontWeight: "800" }}>
+          {busy ? "Signing in…" : "Sign in"}
+        </Text>
       </Pressable>
 
-      <Pressable style={[styles.button, styles.secondary]} onPress={onSignUp} disabled={loading}>
-        <Text style={styles.buttonText}>Create account</Text>
+      <Pressable
+        onPress={signUp}
+        disabled={!canSubmit}
+        style={[
+          styles.button,
+          {
+            borderColor: theme.tabIconDefault,
+            backgroundColor: "transparent",
+            opacity: canSubmit ? 1 : 0.5,
+          },
+        ]}
+      >
+        <Text style={{ color: theme.text, fontWeight: "800" }}>
+          {busy ? "Working…" : "Sign up"}
+        </Text>
       </Pressable>
     </View>
   );
@@ -60,10 +148,7 @@ export default function SignInScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: "center", padding: 24 },
-  title: { fontSize: 22, fontWeight: "700", marginBottom: 16 },
-  input: { borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 },
-  button: { borderWidth: 1, borderRadius: 10, padding: 12, alignItems: "center", marginTop: 8 },
-  secondary: { opacity: 0.85 },
-  buttonText: { fontWeight: "600" },
-  error: { marginTop: 6, marginBottom: 6 }
+  title: { fontSize: 28, fontWeight: "800", marginBottom: 6 },
+  input: { borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 12 },
+  button: { borderWidth: 1, borderRadius: 12, paddingVertical: 12, alignItems: "center", marginTop: 10 },
 });

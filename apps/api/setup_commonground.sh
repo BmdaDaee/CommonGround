@@ -30,17 +30,17 @@ echo "⚙️ Ensuring core service files exist..."
 if [ ! -f "services/session.js" ]; then
   cat << 'EOF' > services/session.js
 // services/session.js
-// Unified entrypoint for sending a message to Shantell
+// Unified entrypoint for sending a message to BentlyAI
 
 const { askPersona, MODES } = require("./ai");
 const { getUserById, getRelationshipById } = require("./db");
 
-async function sendToShantell({ userId, relationshipId, message, mode }) {
+async function sendToBentlyAI({ userId, relationshipId, message, mode }) {
   if (!userId) {
-    throw new Error("sendToShantell requires userId");
+    throw new Error("sendToBentlyAI requires userId");
   }
   if (!message || typeof message !== "string") {
-    throw new Error("sendToShantell requires a non-empty message string");
+    throw new Error("sendToBentlyAI requires a non-empty message string");
   }
 
   const userProfile = await getUserById(userId);
@@ -57,7 +57,7 @@ async function sendToShantell({ userId, relationshipId, message, mode }) {
   return reply;
 }
 
-module.exports = { sendToShantell };
+module.exports = { sendToBentlyAI };
 EOF
   echo "   → Created services/session.js"
 else

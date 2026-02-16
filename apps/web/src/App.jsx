@@ -751,7 +751,7 @@ export default function App() {
         >
           <h2 style={{ marginTop: 0, marginBottom: 8 }}>Tools</h2>
           <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 12 }}>
-            Prototype features, but powered by Shantell’s voice. Paste text, pick a tool, get something usable.
+            Prototype features, but powered by BentlyAI’s voice. Paste text, pick a tool, get something usable.
           </div>
 
           <textarea

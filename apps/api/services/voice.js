@@ -10,7 +10,7 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const VOICE_PACKS = {
   shantell_inspired: {
     id: "shantell_inspired",
-    label: "Shantell (Inspired)",
+    label: "BentlyAI (Inspired)",
     provider: "openai",
     voice: "coral", // placeholder, swap later
     model: "gpt-4o-mini-tts",
@@ -21,7 +21,7 @@ const VOICE_PACKS = {
   // Example placeholder for future legit custom voice
   shantell_custom_locked: {
     id: "shantell_custom_locked",
-    label: "Custom Shantell (Locked)",
+    label: "Custom BentlyAI (Locked)",
     provider: "custom",
     voice: null,
     model: null,
@@ -36,7 +36,7 @@ function getVoicePack(voicePackId) {
 }
 
 /**
- * Build speech delivery instructions that match Shantell’s vibe + toneMode.
+ * Build speech delivery instructions that match BentlyAI’s vibe + toneMode.
  * Keep it short. Instructions help pacing/emphasis.
  */
 function buildDeliveryInstructions({ toneMode, delivery }) {

@@ -1,6 +1,6 @@
 /// backend/persona/emotionAnalysis.js
 
-// Basic emotion analysis + tone mode detection for Shantell.
+// Basic emotion analysis + tone mode detection for BentlyAI.
 // Main export is a function: analyzeEmotion(text) -> { label, intensity }.
 // It also exposes: analyzeEmotion.detectToneModeFromEmotion(emotion, text).
 

@@ -1,8 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, SafeAreaView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  FlatList,
+  SafeAreaView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Mode, ModeToggle, ChatBubble } from "@cg/ui";
 import { useAuth } from "../../context/AuthContext";
 import { apiGet, apiPost } from "../../lib/api";
+import { Colors } from "../../constants/theme";
+import { useColorScheme } from "../../hooks/use-color-scheme";
 
 type ChatMessage = {
   id: string;
@@ -17,13 +27,20 @@ function createMessageId() {
 }
 
 export default function ChatScreen() {
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
+
   const { user, pairId } = useAuth();
   const [mode, setMode] = useState<Mode>("commonground");
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
 
-  const list = useMemo(() => [...messages].sort((a, b) => a.createdAt - b.createdAt), [messages]);
+  const list = useMemo(
+    () => [...messages].sort((a, b) => a.createdAt - b.createdAt),
+    [messages]
+  );
 
   const load = useCallback(async () => {
     if (!pairId) return;
@@ -32,28 +49,40 @@ export default function ChatScreen() {
   }, [pairId]);
 
   async function send() {
-    if (!pairId || !user) return;
+    if (!user) {
+      Alert.alert("Not signed in", "Sign in first, then try again.");
+      return;
+    }
+    if (!pairId) {
+      Alert.alert("Not paired", "Pair with someone before sending messages.");
+      return;
+    }
+
     const trimmed = text.trim();
     if (!trimmed) return;
 
     const messageId = createMessageId();
     setText("");
 
-    // Optimistic insert (idempotent server write makes retries safe)
     const optimistic: ChatMessage = {
       id: messageId,
       text: trimmed,
       authorType: "self",
       createdAt: Date.now(),
-      authorUid: user.id
+      authorUid: user.id,
     };
+
     setMessages((prev) => [...prev, optimistic]);
 
     try {
-      await apiPost(`/v1/chat/${pairId}/send`, { messageId, text: trimmed });
-    } catch {
-      // If send fails, reload to reconcile. (Yes, annoying. Also reliable.)
+      setSending(true);
+      await apiPost(`/v1/chat/${pairId}/send`, { messageId, text: trimmed, mode });
+    } catch (e: any) {
+      const msg = typeof e?.message === "string" ? e.message : "Unknown error";
+      Alert.alert("Send failed", msg);
       await load();
+    } finally {
+      setSending(false);
     }
   }
 
@@ -62,17 +91,22 @@ export default function ChatScreen() {
     load().finally(() => setLoading(false));
   }, [load]);
 
-  const systemHeader = {
+  const systemHeader: ChatMessage = {
     id: "system-hello",
-    text: "Shantell: Keep it cute, keep it honest. You’re both here now.",
-    authorType: "system" as const,
-    createdAt: 0
+    text: "BentlyAI: Keep it cute, keep it honest. You’re both here now.",
+    authorType: "system",
+    createdAt: 0,
   };
 
+  const sendDisabled = sending || !text.trim();
+  const sendButtonColor = theme.tint;
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: mode === "deeplyus" ? "#9966CC" : "#FFFFF2" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 8 }}>
-        <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 8 }}>Chat</Text>
+        <Text style={{ fontSize: 18, fontWeight: "700", marginBottom: 8, color: theme.text }}>
+          Chat
+        </Text>
         <ModeToggle mode={mode} onChange={setMode} />
       </View>
 
@@ -91,38 +125,48 @@ export default function ChatScreen() {
                 : "partner"
             }
             text={item.text}
-            timestamp={item.createdAt ? new Date(item.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : undefined}
+            timestamp={
+              item.createdAt
+                ? new Date(item.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                : undefined
+            }
           />
         )}
         refreshing={loading}
         onRefresh={load}
       />
 
-      <View style={{ flexDirection: "row", padding: 12, borderTopWidth: 1, borderColor: "rgba(0,0,0,0.08)" }}>
+      <View style={{ flexDirection: "row", padding: 12, borderTopWidth: 1, borderColor: theme.tabIconDefault }}>
         <TextInput
           value={text}
           onChangeText={setText}
           placeholder="Type something real…"
+          placeholderTextColor={theme.tabIconDefault}
           style={{
             flex: 1,
             borderWidth: 1,
-            borderColor: "rgba(0,0,0,0.15)",
+            borderColor: theme.tabIconDefault,
             borderRadius: 999,
             paddingHorizontal: 14,
-            paddingVertical: 10
+            paddingVertical: 10,
+            color: theme.text,
           }}
         />
         <TouchableOpacity
           onPress={send}
+          disabled={sendDisabled}
           style={{
             marginLeft: 10,
             borderRadius: 999,
             paddingHorizontal: 16,
             justifyContent: "center",
-            backgroundColor: mode === "deeplyus" ? "#8B0000" : "#92EAD9"
+            backgroundColor: sendButtonColor,
+            opacity: sendDisabled ? 0.6 : 1,
           }}
         >
-          <Text style={{ fontWeight: "700" }}>Send</Text>
+          <Text style={{ fontWeight: "700", color: theme.background }}>
+            {sending ? "..." : "Send"}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

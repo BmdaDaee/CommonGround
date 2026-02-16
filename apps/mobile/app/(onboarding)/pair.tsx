@@ -1,93 +1,185 @@
-import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { api } from '@/lib/api';
-import { useAuth } from '@/context/AuthContext';
+import React, { useMemo, useState, useEffect } from "react";
+import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import { useRouter } from "expo-router";
+import * as Clipboard from "expo-clipboard";
 
-export default function PairScreen() {
-  const { profile, refreshProfile } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [code, setCode] = useState('');
+import { useAuth } from "../../context/AuthContext";
+import { apiPost } from "../../lib/api";
+import { Colors } from "../../constants/theme";
+import { useColorScheme } from "../../hooks/use-color-scheme";
+
+export default function PairUpScreen() {
+  const router = useRouter();
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? "light"];
+
+  const { user, pairId } = useAuth();
+
+  const alreadyPaired = useMemo(() => Boolean(pairId), [pairId]);
+  const [checking, setChecking] = useState(true);
+
+  const [joinCode, setJoinCode] = useState("");
   const [createdCode, setCreatedCode] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  async function create() {
-    setLoading(true);
+  useEffect(() => {
+    setChecking(false);
+  }, []);
+
+  useEffect(() => {
+    if (alreadyPaired) {
+      router.replace("/(tabs)");
+    }
+  }, [alreadyPaired, router]);
+
+  async function createPair() {
+    if (!user) {
+      Alert.alert("Not signed in", "Please sign in first.");
+      router.push("/(auth)/login");
+      return;
+    }
+
+    setBusy(true);
     try {
-      const res = await api.post('/v1/pairs');
-      setCreatedCode(res.data.code);
-      await refreshProfile();
-    } catch (e: any) {
-      Alert.alert('Create failed', e?.response?.data?.error || e?.message || 'Unknown error');
+      const res = await apiPost("/v1/pairs", {});
+      const code = res?.code || res?.pair?.code || null;
+      setCreatedCode(code);
+
+      if (code) {
+        Alert.alert("Pair created", `Code: ${code}`);
+      } else {
+        Alert.alert("Pair created", "Created, but no code returned. Check API response.");
+      }
+    } catch (err: any) {
+      Alert.alert("Create failed", String(err?.message ?? err ?? "unknown_error"));
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
 
-  async function join() {
-    setLoading(true);
-    try {
-      const res = await api.post('/v1/pairs/join', { code: code.trim().toUpperCase() });
-      if (res.data?.pairId) {
-        await refreshProfile();
-      }
-    } catch (e: any) {
-      Alert.alert('Join failed', e?.response?.data?.error || e?.message || 'Unknown error');
-    } finally {
-      setLoading(false);
+  async function joinPair() {
+    if (!user) {
+      Alert.alert("Not signed in", "Please sign in first.");
+      router.push("/(auth)/login");
+      return;
     }
+
+    const code = joinCode.trim().toUpperCase();
+    if (!code) {
+      Alert.alert("Join failed", "Enter a pair code.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await apiPost("/v1/pairs/join", { code });
+      router.replace("/(tabs)");
+    } catch (err: any) {
+      Alert.alert("Join failed", String(err?.message ?? err ?? "unknown_error"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyCreatedCode() {
+    if (!createdCode) return;
+    await Clipboard.setStringAsync(createdCode);
+    Alert.alert("Copied", createdCode);
+  }
+
+  if (checking) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background }}>
+        <Text style={{ color: theme.text, fontWeight: "700" }}>Loading…</Text>
+      </View>
+    );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Pair up</Text>
-      <Text style={styles.subtitle}>Create a pair code or join your partner’s.</Text>
+    <View style={{ flex: 1, padding: 16, gap: 12, backgroundColor: theme.background }}>
+      <Text style={{ fontSize: 28, fontWeight: "800", color: theme.text }}>Pair up</Text>
+      <Text style={{ color: theme.icon }}>Create a pair code or join your partner’s.</Text>
 
-      <View style={styles.card}>
-        <Pressable onPress={create} style={styles.primary} disabled={loading}>
-          {loading ? <ActivityIndicator /> : <Text style={styles.primaryText}>Create pair</Text>}
+      {!user && (
+        <Pressable
+          onPress={() => router.push("/(auth)/login")}
+          style={{
+            borderRadius: 16,
+            paddingVertical: 12,
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: theme.tabIconDefault,
+          }}
+        >
+          <Text style={{ color: theme.text, fontWeight: "800" }}>Sign in</Text>
+        </Pressable>
+      )}
+
+      <View style={{ gap: 10, marginTop: 8 }}>
+        <Pressable
+          onPress={createPair}
+          disabled={busy}
+          style={{
+            borderRadius: 16,
+            paddingVertical: 14,
+            alignItems: "center",
+            backgroundColor: theme.tint,
+            opacity: busy ? 0.6 : 1,
+          }}
+        >
+          <Text style={{ color: theme.background, fontWeight: "800" }}>Create pair</Text>
         </Pressable>
 
-        {!!createdCode && (
-          <View style={styles.codeBox}>
-            <Text style={styles.label}>Share this code with your partner:</Text>
-            <Text style={styles.code}>{createdCode}</Text>
+        {createdCode && (
+          <View style={{ gap: 8, padding: 12, borderRadius: 16, borderWidth: 1, borderColor: theme.tabIconDefault }}>
+            <Text style={{ color: theme.text, fontWeight: "800" }}>Your pair code</Text>
+            <Text style={{ color: theme.text, fontSize: 18, letterSpacing: 2 }}>{createdCode}</Text>
+            <Pressable
+              onPress={copyCreatedCode}
+              style={{
+                borderRadius: 14,
+                paddingVertical: 10,
+                alignItems: "center",
+                backgroundColor: theme.tabIconDefault,
+              }}
+            >
+              <Text style={{ color: theme.background, fontWeight: "800" }}>Copy code</Text>
+            </Pressable>
           </View>
         )}
 
-        <View style={styles.divider} />
+        <View style={{ height: 10 }} />
 
-        <Text style={styles.label}>Join with code</Text>
         <TextInput
-          value={code}
-          onChangeText={setCode}
+          value={joinCode}
+          onChangeText={setJoinCode}
+          placeholder="Enter pair code"
+          placeholderTextColor={theme.tabIconDefault}
           autoCapitalize="characters"
-          placeholder="AB12CD"
-          style={styles.input}
+          style={{
+            borderWidth: 1,
+            borderColor: theme.tabIconDefault,
+            borderRadius: 16,
+            paddingHorizontal: 12,
+            paddingVertical: 12,
+            color: theme.text,
+          }}
         />
-        <Pressable onPress={join} style={styles.secondary} disabled={loading}>
-          {loading ? <ActivityIndicator /> : <Text style={styles.secondaryText}>Join pair</Text>}
-        </Pressable>
 
-        {!!profile?.activePairId && (
-          <Text style={styles.small}>Active pair: {profile.activePairId}</Text>
-        )}
+        <Pressable
+          onPress={joinPair}
+          disabled={busy}
+          style={{
+            borderRadius: 16,
+            paddingVertical: 14,
+            alignItems: "center",
+            backgroundColor: theme.tint,
+            opacity: busy ? 0.6 : 1,
+          }}
+        >
+          <Text style={{ color: theme.background, fontWeight: "800" }}>Join pair</Text>
+        </Pressable>
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, gap: 12 },
-  title: { fontSize: 28, fontWeight: '800' },
-  subtitle: { fontSize: 14, opacity: 0.75 },
-  card: { marginTop: 16, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#00000022', gap: 12 },
-  primary: { borderRadius: 14, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#00000022' },
-  primaryText: { fontSize: 16, fontWeight: '700' },
-  secondary: { borderRadius: 14, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#00000022', opacity: 0.95 },
-  secondaryText: { fontSize: 16, fontWeight: '700' },
-  label: { fontSize: 12, opacity: 0.7 },
-  input: { borderWidth: 1, borderColor: '#00000022', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
-  divider: { height: 1, backgroundColor: '#00000022', marginVertical: 8 },
-  codeBox: { borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#00000022' },
-  code: { fontSize: 24, fontWeight: '900', letterSpacing: 2, marginTop: 6 },
-  small: { fontSize: 12, opacity: 0.6 },
-});
