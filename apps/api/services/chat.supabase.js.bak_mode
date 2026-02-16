@@ -61,7 +61,6 @@ async function sendMessage({ pairId, messageId, clientId, senderId, text }) {
     .insert({
       client_id: (clientId || messageId || null),
       pair_id: pairId,
-      mode,
       sender_id: senderId,
       client_id: clientId || null,
       text,
@@ -82,7 +81,7 @@ async function sendMessage({ pairId, messageId, clientId, senderId, text }) {
  * List recent messages (newest first)
  * Uses cursor-based pagination via server_created_at
  */
-async function listMessages({ pairId, uid, mode = 'common', limit = 30, before = null }) {
+async function listMessages({ pairId, uid, limit = 30, before = null }) {
   // Verify membership
   await assertPairMember(pairId, uid);
 
@@ -92,7 +91,6 @@ async function listMessages({ pairId, uid, mode = 'common', limit = 30, before =
     .from("messages")
     .select("*")
     .eq("pair_id", pairId)
-      .eq("mode", mode)
     .order("server_created_at", { ascending: false })
     .limit(safeLimit);
 

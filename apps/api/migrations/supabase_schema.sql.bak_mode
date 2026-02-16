@@ -39,7 +39,6 @@ CREATE TABLE IF NOT EXISTS pair_members (
 CREATE TABLE IF NOT EXISTS messages (
   id TEXT PRIMARY KEY,
   pair_id TEXT NOT NULL REFERENCES pairs(id) ON DELETE CASCADE,
-  mode text not null default 'common' check (mode in ('common','deep')),
   sender_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   client_id TEXT,
   text TEXT NOT NULL CHECK (LENGTH(text) <= 4000),
@@ -61,8 +60,6 @@ CREATE INDEX IF NOT EXISTS idx_pair_members_active ON pair_members(pair_id) WHER
 
 CREATE INDEX IF NOT EXISTS idx_messages_pair_id ON messages(pair_id);
 CREATE INDEX IF NOT EXISTS idx_messages_pair_created ON messages(pair_id, server_created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_messages_pair_mode_created ON messages(pair_id, mode, server_created_at DESC);
-
 CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
 CREATE INDEX IF NOT EXISTS idx_messages_pair_sender ON messages(pair_id, sender_id);
 
