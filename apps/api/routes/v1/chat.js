@@ -41,7 +41,8 @@ router.post("/:pairId/send", async (req, res) => {
 
     return res.json({
       message: {
-        id: data.client_id || data.id,
+        id: data.id,
+        clientId: data.client_id || null,
         text: data.text,
         authorUid: data.sender_id,
         createdAt: new Date(data.server_created_at || data.created_at).getTime(),
@@ -73,7 +74,8 @@ router.get("/:pairId/list", async (req, res) => {
     }
 
     const messages = (data || []).map((m) => ({
-      id: m.client_id || m.id,
+      id: m.id,
+      clientId: m.client_id || null
       text: m.text,
       authorUid: m.sender_id,
       createdAt: new Date(m.server_created_at || m.created_at).getTime(),

@@ -48,7 +48,7 @@ async function sendMessage({ pairId, messageId, clientId, senderId, text }) {
   const { data: existing } = await supabase
     .from("messages")
     .select("*")
-    .eq("id", messageId)
+    .eq("client_id", (clientId || messageId))
     .single();
 
   if (existing) {
@@ -59,7 +59,7 @@ async function sendMessage({ pairId, messageId, clientId, senderId, text }) {
   const { data: message, error } = await supabase
     .from("messages")
     .insert({
-      id: messageId,
+      client_id: (clientId || messageId || null),
       pair_id: pairId,
       sender_id: senderId,
       client_id: clientId || null,
