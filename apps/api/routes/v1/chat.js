@@ -75,7 +75,7 @@ router.get("/:pairId/list", async (req, res) => {
 
     const messages = (data || []).map((m) => ({
       id: m.id,
-      clientId: m.client_id || null
+      clientId: m.client_id || null,
       text: m.text,
       authorUid: m.sender_id,
       createdAt: new Date(m.server_created_at || m.created_at).getTime(),
