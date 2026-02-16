@@ -1,10 +1,9 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
-import * as Clipboard from "expo-clipboard";
 
 import { useAuth } from "../../context/AuthContext";
-import { apiPost } from "../../lib/api";
+import { apiGet, apiPost } from "../../lib/api";
 import { Colors } from "../../constants/theme";
 import { useColorScheme } from "../../hooks/use-color-scheme";
 
@@ -19,12 +18,39 @@ export default function PairUpScreen() {
   const [checking, setChecking] = useState(true);
 
   const [joinCode, setJoinCode] = useState("");
-  const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    setChecking(false);
-  }, []);
+    let alive = true;
+
+    async function run() {
+      try {
+        if (!user) {
+          if (alive) setChecking(false);
+          return;
+        }
+
+        const res = await apiGet("/v1/pairs/me");
+        const existing = res?.pair?.id ? true : false;
+
+        if (!alive) return;
+
+        if (existing) {
+          router.replace("/(tabs)");
+          return;
+        }
+
+        setChecking(false);
+      } catch {
+        if (alive) setChecking(false);
+      }
+    }
+
+    run();
+    return () => {
+      alive = false;
+    };
+  }, [user, router]);
 
   useEffect(() => {
     if (alreadyPaired) {
@@ -35,21 +61,13 @@ export default function PairUpScreen() {
   async function createPair() {
     if (!user) {
       Alert.alert("Not signed in", "Please sign in first.");
-      router.push("/(auth)/login");
       return;
     }
 
     setBusy(true);
     try {
-      const res = await apiPost("/v1/pairs", {});
-      const code = res?.code || res?.pair?.code || null;
-      setCreatedCode(code);
-
-      if (code) {
-        Alert.alert("Pair created", `Code: ${code}`);
-      } else {
-        Alert.alert("Pair created", "Created, but no code returned. Check API response.");
-      }
+      await apiPost("/v1/pairs", {});
+      router.replace("/(tabs)");
     } catch (err: any) {
       Alert.alert("Create failed", String(err?.message ?? err ?? "unknown_error"));
     } finally {
@@ -60,11 +78,10 @@ export default function PairUpScreen() {
   async function joinPair() {
     if (!user) {
       Alert.alert("Not signed in", "Please sign in first.");
-      router.push("/(auth)/login");
       return;
     }
 
-    const code = joinCode.trim().toUpperCase();
+    const code = joinCode.trim();
     if (!code) {
       Alert.alert("Join failed", "Enter a pair code.");
       return;
@@ -81,16 +98,10 @@ export default function PairUpScreen() {
     }
   }
 
-  async function copyCreatedCode() {
-    if (!createdCode) return;
-    await Clipboard.setStringAsync(createdCode);
-    Alert.alert("Copied", createdCode);
-  }
-
   if (checking) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.background }}>
-        <Text style={{ color: theme.text, fontWeight: "700" }}>Loading…</Text>
+        <Text style={{ color: theme.text, fontWeight: "700" }}>Checking pairing…</Text>
       </View>
     );
   }
@@ -99,21 +110,6 @@ export default function PairUpScreen() {
     <View style={{ flex: 1, padding: 16, gap: 12, backgroundColor: theme.background }}>
       <Text style={{ fontSize: 28, fontWeight: "800", color: theme.text }}>Pair up</Text>
       <Text style={{ color: theme.icon }}>Create a pair code or join your partner’s.</Text>
-
-      {!user && (
-        <Pressable
-          onPress={() => router.push("/(auth)/login")}
-          style={{
-            borderRadius: 16,
-            paddingVertical: 12,
-            alignItems: "center",
-            borderWidth: 1,
-            borderColor: theme.tabIconDefault,
-          }}
-        >
-          <Text style={{ color: theme.text, fontWeight: "800" }}>Sign in</Text>
-        </Pressable>
-      )}
 
       <View style={{ gap: 10, marginTop: 8 }}>
         <Pressable
@@ -129,24 +125,6 @@ export default function PairUpScreen() {
         >
           <Text style={{ color: theme.background, fontWeight: "800" }}>Create pair</Text>
         </Pressable>
-
-        {createdCode && (
-          <View style={{ gap: 8, padding: 12, borderRadius: 16, borderWidth: 1, borderColor: theme.tabIconDefault }}>
-            <Text style={{ color: theme.text, fontWeight: "800" }}>Your pair code</Text>
-            <Text style={{ color: theme.text, fontSize: 18, letterSpacing: 2 }}>{createdCode}</Text>
-            <Pressable
-              onPress={copyCreatedCode}
-              style={{
-                borderRadius: 14,
-                paddingVertical: 10,
-                alignItems: "center",
-                backgroundColor: theme.tabIconDefault,
-              }}
-            >
-              <Text style={{ color: theme.background, fontWeight: "800" }}>Copy code</Text>
-            </Pressable>
-          </View>
-        )}
 
         <View style={{ height: 10 }} />
 
