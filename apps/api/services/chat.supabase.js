@@ -29,7 +29,7 @@ async function assertPairMember(pairId, userId) {
  * - client provides messageId (uuid)
  * - if message already exists with this ID, return it instead of creating duplicate
  */
-async function sendMessage({ pairId, messageId, clientId, senderId, text }) {
+async function sendMessage({ pairId, messageId, clientId, senderId, text, mode = 'common' }) {
   if (!text || typeof text !== "string") {
     const err = new Error("invalid_text");
     err.status = 400;
@@ -56,14 +56,15 @@ async function sendMessage({ pairId, messageId, clientId, senderId, text }) {
   }
 
   // Insert new message
+  const safeMode = (mode === "deep" ? "deep" : "common");
+
   const { data: message, error } = await supabase
     .from("messages")
     .insert({
       client_id: (clientId || messageId || null),
       pair_id: pairId,
-      mode,
+      mode: safeMode,
       sender_id: senderId,
-      client_id: clientId || null,
       text,
     })
     .select()

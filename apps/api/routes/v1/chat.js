@@ -32,6 +32,7 @@ const { messageId, text } = req.body || {};
       pair_id: pairId,
       sender_id: req.auth.uid,
       text: trimmed,
+      mode: safeMode,
       server_created_at: new Date().toISOString(),
     };
 
