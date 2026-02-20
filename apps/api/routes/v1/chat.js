@@ -2,6 +2,12 @@ const express = require("express");
 const crypto = require("crypto");
 const router = express.Router();
 
+function getSafeMode(req) {
+  const m = (req.query?.mode ?? req.body?.mode);
+  return m === "deep" ? "deep" : "common";
+}
+
+
 const { requireAuth } = require("../../middleware/requireAuth");
 const { supabase } = require("../../lib/supabaseAdmin");
 
@@ -56,6 +62,8 @@ router.post("/:pairId/send", async (req, res) => {
 });
 
 router.get("/:pairId/list", async (req, res) => {
+    const safeMode = getSafeMode(req);
+
   try {
     const pairId = req.params.pairId;
     const limit = Math.min(parseInt(String(req.query.limit || "50"), 10) || 50, 200);
