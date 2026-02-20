@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Mode, ModeToggle, ChatBubble } from "@cg/ui";
 import { useAuth } from "../../context/AuthContext";
-import { apiGet, apiPost, apiGetSafe} from "../../lib/api";
+import { apiPost, apiGetSafe } from "../../lib/api";
 import { Colors } from "../../constants/theme";
 import { useColorScheme } from "../../hooks/use-color-scheme";
 
@@ -26,12 +26,18 @@ function createMessageId() {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function toApiMode(uiMode: Mode) {
+  return uiMode === "deeplyus" ? "deep" : "common";
+}
+
 export default function ChatScreen() {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
 
   const { user, pairId } = useAuth();
   const [mode, setMode] = useState<Mode>("commonground");
+  const apiMode = useMemo(() => toApiMode(mode), [mode]);
+
   const [text, setText] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -44,14 +50,16 @@ export default function ChatScreen() {
 
   const load = useCallback(async () => {
     if (!pairId) return;
-    const { data: res, error: listErr } = await apiGetSafe(`/v1/chat/${pairId}/list?limit=50&mode=${encodeURIComponent(mode)}`);
+    const { data: res, error: listErr } = await apiGetSafe(
+      `/v1/chat/${pairId}/list?limit=50&mode=${encodeURIComponent(apiMode)}`
+    );
     if (listErr) {
       console.log("CG_CHAT_DEBUG: list failed", listErr);
       setMessages([]);
       return;
     }
     setMessages(res.messages ?? []);
-  }, [pairId]);
+  }, [pairId, apiMode]);
 
   async function send() {
     if (!user) {
@@ -81,7 +89,7 @@ export default function ChatScreen() {
 
     try {
       setSending(true);
-      await apiPost(`/v1/chat/${pairId}/send`, { messageId, text: trimmed, mode });
+      await apiPost(`/v1/chat/${pairId}/send`, { messageId, text: trimmed, mode: apiMode });
     } catch (e: any) {
       const msg = typeof e?.message === "string" ? e.message : "Unknown error";
       Alert.alert("Send failed", msg);
@@ -95,6 +103,12 @@ export default function ChatScreen() {
     setLoading(true);
     load().finally(() => setLoading(false));
   }, [load]);
+
+  useEffect(() => {
+    setMessages([]);
+    setLoading(true);
+    load().finally(() => setLoading(false));
+  }, [apiMode, load]);
 
   const systemHeader: ChatMessage = {
     id: "system-hello",
