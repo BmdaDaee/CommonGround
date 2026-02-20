@@ -11,14 +11,14 @@ CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   display_name TEXT,
   photo_url TEXT,
-  active_pair_id TEXT,
+  active_pair_id UUID,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- PAIRS TABLE
 CREATE TABLE IF NOT EXISTS pairs (
-  id TEXT PRIMARY KEY,
+  id UUID PRIMARY KEY,
   code TEXT NOT NULL UNIQUE,
   status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'ACTIVE', 'INACTIVE')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS pairs (
 
 -- PAIR_MEMBERS TABLE
 CREATE TABLE IF NOT EXISTS pair_members (
-  pair_id TEXT NOT NULL REFERENCES pairs(id) ON DELETE CASCADE,
+  pair_id UUID NOT NULL REFERENCES pairs(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('A', 'B', 'CREATOR', 'JOINER')),
   joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS pair_members (
 -- MESSAGES TABLE
 CREATE TABLE IF NOT EXISTS messages (
   id TEXT PRIMARY KEY,
-  pair_id TEXT NOT NULL REFERENCES pairs(id) ON DELETE CASCADE,
+  pair_id UUID NOT NULL REFERENCES pairs(id) ON DELETE CASCADE,
   mode text not null default 'common' check (mode in ('common','deep')),
   sender_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   client_id TEXT,
@@ -211,3 +211,67 @@ DROP POLICY IF EXISTS "Service role full access to messages" ON messages;
 CREATE POLICY "Service role full access to messages"
   ON messages FOR ALL
   USING (auth.jwt()->>'role' = 'service_role');
+-- ============================================================================
+-- PULSES TABLE (one per pair)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS pulses (
+  pair_id UUID PRIMARY KEY REFERENCES pairs(id) ON DELETE CASCADE,
+  mood TEXT NOT NULL CHECK (LENGTH(mood) <= 64),
+  updated_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pulses_pair_id ON pulses(pair_id);
+CREATE INDEX IF NOT EXISTS idx_pulses_updated_at ON pulses(updated_at DESC);
+
+DROP TRIGGER IF EXISTS update_pulses_updated_at ON pulses;
+CREATE TRIGGER update_pulses_updated_at
+  BEFORE UPDATE ON pulses
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE pulses ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can read pulses from own pairs" ON pulses;
+CREATE POLICY "Users can read pulses from own pairs"
+  ON pulses FOR SELECT
+  USING (
+    pair_id IN (
+      SELECT pair_id FROM pair_members
+      WHERE user_id = auth.uid() AND left_at IS NULL
+    )
+  );
+
+DROP POLICY IF EXISTS "Users can write pulses for own pairs" ON pulses;
+CREATE POLICY "Users can write pulses for own pairs"
+  ON pulses FOR INSERT
+  WITH CHECK (
+    pair_id IN (
+      SELECT pair_id FROM pair_members
+      WHERE user_id = auth.uid() AND left_at IS NULL
+    )
+  );
+
+DROP POLICY IF EXISTS "Users can update pulses for own pairs" ON pulses;
+CREATE POLICY "Users can update pulses for own pairs"
+  ON pulses FOR UPDATE
+  USING (
+    pair_id IN (
+      SELECT pair_id FROM pair_members
+      WHERE user_id = auth.uid() AND left_at IS NULL
+    )
+  )
+  WITH CHECK (
+    pair_id IN (
+      SELECT pair_id FROM pair_members
+      WHERE user_id = auth.uid() AND left_at IS NULL
+    )
+  );
+
+DROP POLICY IF EXISTS "Service role full access to pulses" ON pulses;
+CREATE POLICY "Service role full access to pulses"
+  ON pulses FOR ALL
+  USING (auth.jwt()->>'role' = 'service_role');
+
