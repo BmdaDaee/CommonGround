@@ -16,8 +16,8 @@ router.use(requireAuth);
 router.post("/:pairId/send", async (req, res) => {
   try {
     const pairId = req.params.pairId;
-    const safeMode = (req.query?.mode === 'deep' ? 'deep' : 'common');
-    const { messageId, text } = req.body || {};
+    const safeMode = getSafeMode(req);
+const { messageId, text } = req.body || {};
 
     const trimmed = String(text || "").trim();
     if (!pairId) return res.status(400).json({ error: "missing_pair_id" });
