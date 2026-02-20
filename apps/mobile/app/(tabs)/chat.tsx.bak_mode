@@ -44,7 +44,7 @@ export default function ChatScreen() {
 
   const load = useCallback(async () => {
     if (!pairId) return;
-    const res = await apiGet(`/v1/chat/${pairId}/list?limit=50&mode=${encodeURIComponent(mode)}`);
+    const res = await apiGet(`/v1/chat/${pairId}/list?limit=50`);
     setMessages(res.messages ?? []);
   }, [pairId]);
 

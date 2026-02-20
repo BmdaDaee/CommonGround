@@ -11,6 +11,7 @@ router.post("/:pairId/send", async (req, res) => {
   try {
     const pairId = req.params.pairId;
     const safeMode = (req.query?.mode === 'deep' ? 'deep' : 'common');
+    const safeMode = (req.body?.mode === 'deep' ? 'deep' : 'common');
     const { messageId, text } = req.body || {};
 
     const trimmed = String(text || "").trim();
@@ -66,7 +67,7 @@ router.get("/:pairId/list", async (req, res) => {
       .from("messages")
       .select("id, client_id, text, sender_id, server_created_at, created_at")
       .eq("pair_id", pairId)
-      .eq("mode", safeMode)
+      .eq(\"mode\", safeMode)
       .order("server_created_at", { ascending: false })
       .limit(limit);
 
