@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Mode, ModeToggle, ChatBubble } from "@cg/ui";
 import { useAuth } from "../../context/AuthContext";
-import { apiGet, apiPost } from "../../lib/api";
+import { apiGet, apiPost, apiGetSafe} from "../../lib/api";
 import { Colors } from "../../constants/theme";
 import { useColorScheme } from "../../hooks/use-color-scheme";
 
@@ -44,7 +44,12 @@ export default function ChatScreen() {
 
   const load = useCallback(async () => {
     if (!pairId) return;
-    const res = await apiGet(`/v1/chat/${pairId}/list?limit=50&mode=${encodeURIComponent(mode)}`);
+    const { data: res, error: listErr } = await apiGetSafe(`/v1/chat/${pairId}/list?limit=50&mode=${encodeURIComponent(mode)}`);
+    if (listErr) {
+      console.log("CG_CHAT_DEBUG: list failed", listErr);
+      setMessages([]);
+      return;
+    }
     setMessages(res.messages ?? []);
   }, [pairId]);
 

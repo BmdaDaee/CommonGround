@@ -83,6 +83,7 @@ async function sendMessage({ pairId, messageId, clientId, senderId, text }) {
  * Uses cursor-based pagination via server_created_at
  */
 async function listMessages({ pairId, uid, mode = 'common', limit = 30, before = null }) {
+
   // Verify membership
   await assertPairMember(pairId, uid);
 
@@ -102,6 +103,10 @@ async function listMessages({ pairId, uid, mode = 'common', limit = 30, before =
   }
 
   const { data: messages, error } = await query;
+  if (error) {
+    console.error('[chat.supabase] listMessages supabase error:', error);
+  }
+
 
   if (error) {
     const err = new Error(error.message || "failed_to_list_messages");

@@ -71,3 +71,14 @@ export const api = {
     return { data: await apiDelete(path) };
   },
 };
+
+
+export async function apiGetSafe<T = any>(path: string): Promise<{ data: T | null; error: string | null }> {
+  try {
+    const data = await apiGet<T>(path);
+    return { data, error: null };
+  } catch (e: any) {
+    const msg = e?.message ? String(e.message) : String(e);
+    return { data: null, error: msg };
+  }
+}
