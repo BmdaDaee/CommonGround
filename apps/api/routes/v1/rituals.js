@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const { requireAuth } = require("../../middleware/requireAuth");
-const { supabaseAdmin } = require("../../lib/supabaseAdmin");
+const { supabase } = require("../../lib/supabaseAdmin");
 
 router.use(requireAuth);
 
@@ -20,7 +20,7 @@ router.post("/complete", async (req, res) => {
 
     const day = new Date().toISOString().slice(0, 10);
 
-    const { error } = await supabaseAdmin
+    const { error } = await supabase
       .from("pair_rituals")
       .upsert(
         { pair_id: pairId, user_id: uid, ritual_key: ritualKey, completed: true, day },

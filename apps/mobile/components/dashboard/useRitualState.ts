@@ -1,26 +1,38 @@
 import { useMemo, useState } from "react";
 import { usePersistedState } from "./usePersistedState";
+import { apiPost } from "@/lib/api";
 
 type RitualStatus = "idle" | "saving" | "completed" | "error";
 
 export function useRitualState() {
   const [completed, setCompleted] = usePersistedState<boolean>("cg:ritual:completed", false);
   const [status, setStatus] = useState<RitualStatus>(completed ? "completed" : "idle");
+  const [error, setError] = useState<string | null>(null);
 
-  async function complete() {
+  async function complete(pairId: string, ritualKey: string = "daily") {
+    const pid = String(pairId || "").trim();
+    if (!pid) {
+      setStatus("error");
+      setError("missing_pair_id");
+      return;
+    }
+
+    setError(null);
     setStatus("saving");
     try {
-      await new Promise((r) => setTimeout(r, 450));
+      await apiPost("/v1/rituals/complete", { pairId: pid, ritualKey });
       setCompleted(true);
       setStatus("completed");
-    } catch {
+    } catch (e: any) {
       setStatus("error");
+      setError(e?.message ? String(e.message) : "ritual_complete_failed");
     }
   }
 
   function reset() {
     setCompleted(false);
     setStatus("idle");
+    setError(null);
   }
 
   const label = useMemo(() => {
@@ -30,5 +42,5 @@ export function useRitualState() {
     return "Pending";
   }, [status]);
 
-  return { completed, status, label, complete, reset };
+  return { completed, status, label, error, complete, reset };
 }

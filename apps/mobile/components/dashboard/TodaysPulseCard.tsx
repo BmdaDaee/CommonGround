@@ -10,6 +10,10 @@ export type TodaysPulseCardProps = {
   moods?: MoodKey[];
   onSelectMood?: (mood: MoodKey) => void;
   onSubmitMood?: () => void;
+
+  submitLabel?: string;
+  submitSubtext?: string;
+  submitDisabled?: boolean;
 };
 
 const DEFAULT_MOODS: MoodKey[] = ["Happy", "Calm", "Neutral", "Anxious", "Tired"];
@@ -20,8 +24,14 @@ export default function TodaysPulseCard({
   moods = DEFAULT_MOODS,
   onSelectMood,
   onSubmitMood,
+  submitLabel = "Sync pulse",
+  submitSubtext,
+  submitDisabled = false,
 }: TodaysPulseCardProps) {
-  const safeMoods = useMemo(() => (Array.isArray(moods) && moods.length ? moods : DEFAULT_MOODS), [moods]);
+  const safeMoods = useMemo(
+    () => (Array.isArray(moods) && moods.length ? moods : DEFAULT_MOODS),
+    [moods]
+  );
 
   return (
     <View style={styles.card}>
@@ -50,12 +60,22 @@ export default function TodaysPulseCard({
           })}
         </Row>
 
-        <Pressable
-          onPress={() => (onSubmitMood ? onSubmitMood() : undefined)}
-          style={styles.primaryBtn}
-        >
-          <CGText style={styles.primaryBtnText}>Sync pulse</CGText>
-        </Pressable>
+        <Stack gap={6}>
+          <Pressable
+            disabled={submitDisabled}
+            onPress={() => (onSubmitMood ? onSubmitMood() : undefined)}
+            style={[
+              styles.primaryBtn,
+              submitDisabled ? styles.primaryBtnDisabled : null,
+            ]}
+          >
+            <CGText style={styles.primaryBtnText}>{submitLabel}</CGText>
+          </Pressable>
+
+          {submitSubtext ? (
+            <CGText style={styles.subtext}>{submitSubtext}</CGText>
+          ) : null}
+        </Stack>
       </Stack>
     </View>
   );
@@ -87,5 +107,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: "center",
   },
+  primaryBtnDisabled: {
+    opacity: 0.6,
+  },
   primaryBtnText: { fontSize: 14, fontWeight: "800" },
+
+  subtext: {
+    fontSize: 12,
+    opacity: 0.7,
+  },
 });

@@ -1,9 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert } from "react-native";
 import { useRouter } from "expo-router";
 
 import { Screen, Stack } from "@cg/ui";
 import { useAuth } from "../../context/AuthContext";
+import { apiGetSafe, apiPost } from "../../lib/api";
+import type { MoodKey } from "../../components/dashboard/usePulseState";
 import {
   SearchBarCard,
   TodaysPulseCard,
@@ -12,68 +14,87 @@ import {
   RecentActivityFeedCard,
   StatsCard,
 } from "../../components/dashboard";
+import { useRitualState } from "../../components/dashboard/useRitualState";
+
+
+type PulseSyncState = 'idle' | 'syncing' | 'success' | 'error'
 
 export default function HomeScreen() {
-
-type PairingStatus = 'unknown' | 'none' | 'active' | 'inactive' | 'error'
-
-function usePairingStatus() {
-  const baseUrl = (process.env as any).EXPO_PUBLIC_CG_API_BASE_URL as string | undefined
-  const [status, setStatus] = useState<PairingStatus>('unknown')
-  const [pair, setPair] = useState<any>(null)
-
-  const endpoints = useMemo(() => ([
-    '/api/pairing/active',
-    '/api/pairs/active',
-    '/api/pair/active',
-    '/api/pairing',
-    '/api/pairs/me'
-  ]), [])
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function run() {
-      if (!baseUrl) {
-        setStatus('error')
-        return
-      }
-
-      for (const path of endpoints) {
-        try {
-          const res = await fetch(`${baseUrl}${path}`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-          })
-          if (!res.ok) continue
-
-          const data = await res.json().catch(() => ({} as any))
-          const raw = String(data?.status ?? data?.state ?? data?.pair?.status ?? data?.pair?.state ?? '').toUpperCase()
-          const isActive = raw === 'ACTIVE' || data?.active === true || data?.pair?.active === true
-
-          if (cancelled) return
-          setPair(data)
-          setStatus(isActive ? 'active' : (raw ? 'inactive' : 'none'))
-          return
-        } catch {
-          continue
-        }
-      }
-
-      if (cancelled) return
-      setStatus('none')
-    }
-
-    run()
-    return () => { cancelled = true }
-  }, [baseUrl, endpoints])
-
-  return { status, pair }
-}
-
-
   const router = useRouter();
   const { pairId } = useAuth();
+  const [selectedMood, setSelectedMood] = useState<MoodKey>("Neutral");
+  const [syncState, setSyncState] = useState<PulseSyncState>('idle');
+  const resetTimer = useRef<any>(null);
+
+  const { completed: ritualCompleted, complete: ritualComplete, reset: ritualReset } = useRitualState();
+
+  useEffect(() => {
+    return () => {
+      if (resetTimer.current) clearTimeout(resetTimer.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPulse() {
+      if (!pairId) {
+        setPulse(null);
+        return;
+      }
+      const { data, error } = await apiGetSafe(`/v1/pulse?pairId=${encodeURIComponent(pairId)}`);
+      if (cancelled) return;
+      if (error) return;
+
+      const p = data?.pulse ?? null;
+
+      const m = (p?.mood as MoodKey | undefined);
+      if (m) setSelectedMood(m);
+    }
+
+    loadPulse();
+    return () => { cancelled = true; };
+  }, [pairId]);
+
+  async function submitMood(mood: MoodKey) {
+    const trimmed = String(mood || "").trim();
+    if (!trimmed) {
+      Alert.alert("Pulse", "Pick a mood first.");
+      return;
+    }
+    if (!pairId) {
+      Alert.alert("Not paired", "Pair with someone before sending a pulse.");
+      return;
+    }
+
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+    setSyncState('syncing');
+
+    const { error } = await apiPost("/v1/pulse", { pairId, mood: trimmed });
+    if (error) {
+      setSyncState('error');
+      Alert.alert("Pulse failed", String(error?.error || "Unknown error"));
+      return;
+    }
+    setSyncState('success');
+
+    resetTimer.current = setTimeout(() => {
+      setSyncState('idle');
+    }, 1200);
+  }
+
+  const pulseLabel =
+    syncState === 'syncing' ? 'Syncing…' :
+    syncState === 'success' ? 'Synced ✓' :
+    syncState === 'error' ? 'Retry sync' :
+    'Sync pulse';
+
+  const pulseSubtext =
+    syncState === 'success' ? 'Updated just now' :
+    syncState === 'error' ? 'Could not sync. Try again.' :
+    undefined;
+
+  const pulseDisabled = syncState === 'syncing' || !pairId;
 
   const activities = [
     { id: "1", text: "Morning meditation", timestamp: "9:00 AM" },
@@ -94,11 +115,19 @@ function usePairingStatus() {
       <Stack gap={16}>
         <SearchBarCard />
 
-        <TodaysPulseCard onSubmitMood={(mood) => Alert.alert("Pulse", `Submitted: ${mood}`)} />
+        <TodaysPulseCard
+          mood={selectedMood}
+          onSelectMood={setSelectedMood}
+          onSubmitMood={() => submitMood(selectedMood)}
+          submitLabel={pulseLabel}
+          submitSubtext={pulseSubtext}
+          submitDisabled={pulseDisabled}
+        />
 
         <SharedRitualCard
-          onComplete={() => Alert.alert("Ritual", "Marked complete")}
-          onReset={() => Alert.alert("Ritual", "Reset")}
+          completed={ritualCompleted}
+          onComplete={() => (pairId ? ritualComplete(pairId, "daily") : Alert.alert("Not paired", "Pair with someone before completing a ritual."))}
+          onReset={() => ritualReset()}
         />
 
         <PartnerQuickActionsCard

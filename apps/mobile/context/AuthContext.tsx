@@ -25,87 +25,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshingRef = useRef(false);
 
   async function refreshPair() {
-  const baseUrl = (process.env as any).EXPO_PUBLIC_CG_API_BASE_URL as string | undefined;
+    if (refreshingRef.current) return;
+    refreshingRef.current = true;
 
-  try {
-    console.log("CG_REFRESH_DEBUG: refreshPair start");
-    console.log("CG_REFRESH_DEBUG: API base", baseUrl);
-    setPairLoading(true);
-
-    if (!baseUrl) {
-      console.log("CG_REFRESH_DEBUG: missing EXPO_PUBLIC_CG_API_BASE_URL");
-      setPairId(null);
-      return;
-    }
-
-    const token =
-      (typeof accessToken !== "undefined" && (accessToken as any)) ||
-      (session as any)?.access_token ||
-      (session as any)?.accessToken ||
-      null;
-
-    if (!token) {
-      console.log("CG_REFRESH_DEBUG: missing access token at refreshPair");
-      setPairId(null);
-      return;
-    }
-
-    const controller = new AbortController();
-    const t = setTimeout(() => controller.abort(), 8000);
-
-    const path = "/v1/pairs/me";
-    console.log("CG_REFRESH_DEBUG: trying", path);
-
-    const res = await fetch(`${baseUrl}${path}`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      signal: controller.signal,
-    }).finally(() => clearTimeout(t));
-
-    console.log("CG_REFRESH_DEBUG: /v1/pairs/me status", res.status);
-
-    const text = await res.text().catch(() => "");
-    console.log("CG_REFRESH_DEBUG: /v1/pairs/me body", text.slice(0, 300));
-
-    if (!res.ok) {
-      setPairId(null);
-      return;
-    }
-
-    let data: any = null;
     try {
-      data = JSON.parse(text);
+      setPairLoading(true);
+
+      if (!session?.access_token) {
+        setPairId(null);
+        return;
+      }
+
+      const data: any = await apiGet("/v1/pairs/me");
+      const pid =
+        data?.pair?.id ||
+        data?.pair?.pair_id ||
+        data?.pairId ||
+        data?.activePairId ||
+        data?.active_pair_id ||
+        null;
+
+      setPairId(pid);
     } catch {
-      data = null;
+      setPairId(null);
+    } finally {
+      setPairLoading(false);
+      refreshingRef.current = false;
     }
-
-    const pairId =
-      data?.pair?.id ||
-      data?.pair?.pair_id ||
-      data?.pairId ||
-      data?.activePairId ||
-      data?.active_pair_id ||
-      null;
-
-    if (pairId) {
-      console.log("CG_REFRESH_DEBUG: setPairId", pairId);
-      setPairId(pairId);
-      return;
-    }
-
-    console.log("CG_REFRESH_DEBUG: no active pair found (parsed)");
-    setPairId(null);
-  } catch (e) {
-    console.log("CG_REFRESH_DEBUG: refreshPair error", e);
-    setPairId(null);
-  } finally {
-    console.log("CG_REFRESH_DEBUG: pairLoading false");
-    setPairLoading(false);
   }
-}
 
   useEffect(() => {
     let mounted = true;

@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import "./App.css";
 import { apiBaseUrl } from "./config/runtime";
+import PulsePanel from "./components/PulsePanel";
 
 const DEFAULT_USER_ID = "test-user-1";
 const API_BASE = apiBaseUrl; // default: Vite proxy
@@ -17,7 +18,6 @@ function buildApiErrorMessage(status, { data, text } = {}) {
   const fromText = typeof text === "string" ? text.trim() : "";
   if (fromText) return fromText;
 
-  // Vite proxy returns an empty 500 when the API process is not running.
   if (status === 500 && !API_BASE) {
     return `API unavailable at ${API_DEV_ORIGIN}. Start backend with: npm -w apps/api run dev`;
   }
@@ -204,18 +204,16 @@ export default function App() {
   const [toneState, setToneState] = useState(null);
   const [error, setError] = useState("");
 
-  // Pinned banner points to the last in-chat callout (no duplicate full card)
-  const [pinnedCallout, setPinnedCallout] = useState(null); // {topic, text, key?}
-  const [pinnedCalloutMsgId, setPinnedCalloutMsgId] = useState(null); // message id of in-chat callout
+  const [pinnedCallout, setPinnedCallout] = useState(null);
+  const [pinnedCalloutMsgId, setPinnedCalloutMsgId] = useState(null);
 
-  const calloutRefs = useRef(new Map()); // msgId -> DOM node
+  const calloutRefs = useRef(new Map());
   const scrollRef = useRef(null);
 
   const [msgs, setMsgs] = useState([
     { id: nowId(), kind: "text", role: "assistant", content: "Send 3 similar messages to trigger a Pattern Insight." },
   ]);
 
-  // Tools UI state (prototype-style features)
   const [toolText, setToolText] = useState("");
   const [toolOut, setToolOut] = useState("");
   const [toolJson, setToolJson] = useState(null);
@@ -246,10 +244,8 @@ export default function App() {
     scrollDown();
   };
 
-  // Insert callout ONCE in chat, pin points to it
   const pushCalloutAndPin = (callout) => {
     if (!callout?.text) return;
-
     const calloutMsgId = nowId();
 
     setMsgs((prev) => [
@@ -259,7 +255,6 @@ export default function App() {
 
     setPinnedCallout(callout);
     setPinnedCalloutMsgId(calloutMsgId);
-
     scrollDown();
   };
 
@@ -279,10 +274,7 @@ export default function App() {
 
   const handleIncomingMeta = (meta) => {
     const callout = meta?.callout;
-    if (callout?.text) {
-      // Non-stream path: insert in chat and pin banner to that exact message
-      pushCalloutAndPin(callout);
-    }
+    if (callout?.text) pushCalloutAndPin(callout);
   };
 
   const sendNonStream = async (text) => {
@@ -303,7 +295,6 @@ export default function App() {
 
     setSessionId(data.sessionId || "");
     setToneState(data.toneState || null);
-
     handleIncomingMeta(data?.meta);
 
     return data.reply || "";
@@ -330,16 +321,13 @@ export default function App() {
 
           const callout = payload?.meta?.callout;
           if (callout?.text) {
-            // Stream path: insert in chat BEFORE the assistant message, and pin banner to it.
             const calloutMsgId = nowId();
 
             setMsgs((prev) => {
               const idx = prev.findIndex((m) => m.id === assistantId);
               if (idx === -1) return prev;
-
               const before = prev.slice(0, idx);
               const after = prev.slice(idx);
-
               return [
                 ...before,
                 { id: calloutMsgId, kind: "callout", topic: callout.topic || "", content: callout.text },
@@ -349,7 +337,6 @@ export default function App() {
 
             setPinnedCallout(callout);
             setPinnedCalloutMsgId(calloutMsgId);
-
             scrollDown();
           }
         },
@@ -427,15 +414,18 @@ export default function App() {
   };
 
   return (
-    <div style={{ maxWidth: 920, margin: "0 auto", padding: 16 }}>
+    <div style={{ maxWidth: 920, margin: "0 auto", padding: 16, textAlign: "left" }}>
       <div style={{ marginBottom: 10 }}>
         <h1 style={{ margin: 0 }}>CommonGround</h1>
         <div style={{ fontSize: 12, opacity: 0.7 }}>
-          Pattern Insights are rare on purpose. They’re not here to nag you.
+          Web is admin-first. Mobile is the relationship home. Same backend, different lives.
         </div>
       </div>
 
-      {/* Controls */}
+      <div style={{ marginBottom: 12 }}>
+        <PulsePanel />
+      </div>
+
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
         <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <span style={{ fontSize: 12, opacity: 0.8 }}>User ID</span>
@@ -462,7 +452,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* View + Vibe (no "mode selector" robot nonsense) */}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12, alignItems: "center" }}>
         <div style={{ display: "flex", gap: 8 }}>
           <button
@@ -499,7 +488,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* ToneState */}
       {toneState ? (
         <div style={{ marginBottom: 12, padding: 10, border: "1px solid #ddd", borderRadius: 12 }}>
           <strong style={{ fontSize: 12 }}>ToneState</strong>
@@ -509,7 +497,6 @@ export default function App() {
         </div>
       ) : null}
 
-      {/* Debug links */}
       {debugLinks ? (
         <div style={{ marginBottom: 12, padding: 10, border: "1px solid #ddd", borderRadius: 12 }}>
           <strong style={{ fontSize: 12 }}>Debug links</strong>
@@ -527,7 +514,6 @@ export default function App() {
         </div>
       ) : null}
 
-      {/* Error */}
       {error ? (
         <div style={{ marginBottom: 12, color: "crimson", fontSize: 12 }}>
           <strong>Last error:</strong> {error}
@@ -535,211 +521,11 @@ export default function App() {
       ) : null}
 
       {view === "chat" ? (
-        <>
-      {/* COMPACT PINNED BANNER (no duplicate full card) */}
-      {pinnedCallout?.text ? (
-        <div
-          style={{
-            marginBottom: 12,
-            padding: 12,
-            borderRadius: 16,
-            border: "1px solid #e6d9ff",
-            background: "linear-gradient(180deg, #ffffff 0%, #fbf7ff 100%)",
-            boxShadow: "0 6px 24px rgba(0,0,0,0.05)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 260 }}>
-            <span
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 999,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "#efe0ff",
-                border: "1px solid #e6d9ff",
-                fontSize: 13,
-                flex: "0 0 auto",
-              }}
-            >
-              ✦
-            </span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 13, fontWeight: 900 }}>Pinned Pattern</div>
-                {pinnedCallout.topic ? <Pill>{pinnedCallout.topic}</Pill> : null}
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  opacity: 0.75,
-                  maxWidth: 520,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-                title={pinnedCallout.text}
-              >
-                {pinnedCallout.text}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <button
-              onClick={() => pinnedCalloutMsgId && scrollToCallout(pinnedCalloutMsgId)}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 12,
-                border: "1px solid #ddd",
-                background: "#fff",
-                fontSize: 12,
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              View
-            </button>
-
-            <button
-              onClick={() => setMessage(reflectPrompt(pinnedCallout))}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 12,
-                border: "1px solid #ddd",
-                background: "#fff",
-                fontSize: 12,
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              Reflect
-            </button>
-
-            <button
-              onClick={() => copyToClipboard(pinnedCallout.text)}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 12,
-                border: "1px solid #ddd",
-                background: "#fff",
-                fontSize: 12,
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              Copy
-            </button>
-
-            <button
-              onClick={() => {
-                setPinnedCallout(null);
-                setPinnedCalloutMsgId(null);
-              }}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 12,
-                border: "1px solid #ddd",
-                background: "#fff",
-                fontSize: 12,
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              Unpin
-            </button>
+        <div style={{ border: "1px solid #ddd", borderRadius: 16, padding: 14, background: "#fff" }}>
+          <div style={{ fontSize: 12, opacity: 0.75 }}>
+            Chat view is still the prototype assistant sandbox. Admin dashboard wiring is above.
           </div>
         </div>
-      ) : null}
-
-      {/* Chat window */}
-      <div
-        style={{
-          height: 420,
-          overflow: "auto",
-          border: "1px solid #ddd",
-          borderRadius: 16,
-          padding: 12,
-          background: "#fff",
-        }}
-      >
-        {msgs.map((m) => {
-          if (m.kind === "callout") {
-            return (
-              <div
-                key={m.id}
-                ref={(node) => {
-                  if (node) calloutRefs.current.set(m.id, node);
-                  else calloutRefs.current.delete(m.id);
-                }}
-                style={{ marginBottom: 10 }}
-              >
-                <PatternInsightCard topic={m.topic} text={m.content} />
-              </div>
-            );
-          }
-
-          return (
-            <div
-              key={m.id}
-              style={{
-                marginBottom: 10,
-                padding: "10px 12px",
-                borderRadius: 14,
-                border: "1px solid #eee",
-                background: m.role === "user" ? "#fcfcfc" : "#fff",
-              }}
-            >
-              <div style={{ fontSize: 11, opacity: 0.6, fontWeight: 800 }}>{m.role.toUpperCase()}</div>
-              <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.35 }}>{m.content}</div>
-            </div>
-          );
-        })}
-        <div ref={scrollRef} />
-      </div>
-
-      {/* Composer */}
-      <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder='Try: "As soon as there’s tension, I shut down..."'
-          style={{
-            flex: 1,
-            minHeight: 70,
-            padding: 12,
-            borderRadius: 16,
-            border: "1px solid #ddd",
-            resize: "vertical",
-          }}
-        />
-        <button
-          onClick={onSend}
-          disabled={isSending || !message.trim()}
-          style={{
-            minWidth: 120,
-            borderRadius: 16,
-            border: "1px solid #ddd",
-            background: isSending ? "#f3f3f3" : "#fff",
-            fontWeight: 900,
-            cursor: isSending ? "not-allowed" : "pointer",
-          }}
-        >
-          {isSending ? "Sending..." : "Send"}
-        </button>
-      </div>
-
-      <div style={{ marginTop: 10, fontSize: 12, opacity: 0.75 }}>
-        Enter sends. Shift+Enter makes a new line.
-      </div>
-        </>
       ) : (
         <div
           style={{
@@ -750,14 +536,11 @@ export default function App() {
           }}
         >
           <h2 style={{ marginTop: 0, marginBottom: 8 }}>Tools</h2>
-          <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 12 }}>
-            Prototype features, but powered by BentlyAI’s voice. Paste text, pick a tool, get something usable.
-          </div>
 
           <textarea
             value={toolText}
             onChange={(e) => setToolText(e.target.value)}
-            placeholder='Paste the situation. Example: "She said I always disappear when we argue..."'
+            placeholder='Paste the situation…'
             style={{
               width: "100%",
               minHeight: 140,
@@ -798,51 +581,6 @@ export default function App() {
               }}
             >
               Break It Down
-            </button>
-
-            <button
-              onClick={() => runTool("date_plan")}
-              disabled={toolBusy || !toolText.trim()}
-              style={{
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: "1px solid #ddd",
-                background: toolBusy ? "#f3f3f3" : "#fff",
-                fontWeight: 900,
-                cursor: toolBusy ? "not-allowed" : "pointer",
-              }}
-            >
-              Date Plan
-            </button>
-
-            <button
-              onClick={() => runTool("spark")}
-              disabled={toolBusy || !toolText.trim()}
-              style={{
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: "1px solid #ddd",
-                background: toolBusy ? "#f3f3f3" : "#fff",
-                fontWeight: 900,
-                cursor: toolBusy ? "not-allowed" : "pointer",
-              }}
-            >
-              Spark
-            </button>
-
-            <button
-              onClick={() => runTool("note")}
-              disabled={toolBusy || !toolText.trim()}
-              style={{
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: "1px solid #ddd",
-                background: toolBusy ? "#f3f3f3" : "#fff",
-                fontWeight: 900,
-                cursor: toolBusy ? "not-allowed" : "pointer",
-              }}
-            >
-              Note
             </button>
           </div>
 

@@ -1,79 +1,48 @@
-import { createClient } from "@supabase/supabase-js"
+import { getAccessToken } from "./adminAuth";
+import { apiBaseUrl } from "../config/runtime";
 
-const apiBaseUrl =
-  import.meta?.env?.VITE_CG_API_BASE_URL ||
-  import.meta?.env?.VITE_API_BASE_URL ||
-  "http://localhost:3001"
-
-const supabaseUrl = import.meta?.env?.VITE_SUPABASE_URL
-const supabaseAnon = import.meta?.env?.VITE_SUPABASE_ANON_KEY
-
-const supabase =
-  supabaseUrl && supabaseAnon ? createClient(supabaseUrl, supabaseAnon) : null
-
-async function getAccessToken() {
-  if (!supabase) return null
-  const { data, error } = await supabase.auth.getSession()
-  if (error) return null
-  return data?.session?.access_token || null
+async function readJsonOrText(res) {
+  const text = await res.text().catch(() => "");
+  if (!text) return { data: null, text: "" };
+  try {
+    return { data: JSON.parse(text), text };
+  } catch {
+    return { data: null, text };
+  }
 }
 
-async function apiFetch(path, init = {}) {
-  const headers = new Headers(init.headers || {})
-  headers.set("Content-Type", "application/json")
+export async function apiFetch(path, options = {}) {
+  const token = await getAccessToken();
 
-  const token = await getAccessToken()
-  if (token) headers.set("Authorization", `Bearer ${token}`)
+  const res = await fetch(`${apiBaseUrl}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
 
-  const res = await fetch(`${apiBaseUrl}${path}`, { ...init, headers })
-  const contentType = res.headers.get("content-type") || ""
-  const bodyText = await res.text().catch(() => "")
+  const payload = await readJsonOrText(res);
 
   if (!res.ok) {
-    throw new Error(`[web api] ${res.status} ${res.statusText} ${bodyText}`)
+    throw new Error(payload?.data?.error || payload?.text || `HTTP ${res.status}`);
   }
 
-  if (contentType.includes("application/json")) {
-    try {
-      return JSON.parse(bodyText)
-    } catch {
-      return {}
-    }
-  }
-
-  return bodyText
+  return payload?.data ?? payload;
 }
 
-export async function chatList(pairId, limit = 50) {
-  if (!pairId) return { messages: [], nextBefore: null }
-  return apiFetch(`/v1/chat/${pairId}/list?limit=${limit}`, { method: "GET" })
+export async function pulseGet(pairId) {
+  if (!pairId) return { pulse: null };
+  return apiFetch(`/v1/pulse?pairId=${encodeURIComponent(pairId)}`, {
+    method: "GET",
+  });
 }
 
-export async function chatSend(pairId, messageId, text) {
-  if (!pairId) throw new Error("missing_pair_id")
-  return apiFetch(`/v1/chat/${pairId}/send`, {
+export async function pulseSet(pairId, mood) {
+  if (!pairId) throw new Error("missing_pair_id");
+  return apiFetch(`/v1/pulse`, {
     method: "POST",
-    body: JSON.stringify({ messageId, text }),
-  })
+    body: JSON.stringify({ pairId, mood }),
+  });
 }
-
-export async function pairsMe() {
-  return apiFetch(`/v1/pairs/me`, { method: "GET" })
-}
-
-export async function pairsCreate() {
-  return apiFetch(`/v1/pairs`, { method: "POST", body: JSON.stringify({}) })
-}
-
-export async function pairsJoin(code) {
-  return apiFetch(`/v1/pairs/join`, {
-    method: "POST",
-    body: JSON.stringify({ code }),
-  })
-}
-
-export async function pairsLeave() {
-  return apiFetch(`/v1/pairs/leave`, { method: "POST", body: JSON.stringify({}) })
-}
-
-export { supabase }
