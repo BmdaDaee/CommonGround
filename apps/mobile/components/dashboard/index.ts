@@ -4,3 +4,5 @@ export { default as SharedRitualCard } from "./SharedRitualCard";
 export { default as PartnerQuickActionsCard } from "./PartnerQuickActionsCard";
 export { default as RecentActivityFeedCard } from "./RecentActivityFeedCard";
 export { default as StatsCard } from "./StatsCard";
+
+export { PartnerCard } from "./PartnerCard";
