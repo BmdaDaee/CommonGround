@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { usePersistedState } from "./usePersistedState";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet, apiPost, normalizeApiErrorMessage } from "@/lib/api";
 
 type RitualStatus = "idle" | "saving" | "completed" | "error";
 
@@ -9,12 +9,22 @@ export function useRitualState() {
   const [status, setStatus] = useState<RitualStatus>(completed ? "completed" : "idle");
   const [error, setError] = useState<string | null>(null);
 
+  const syncFromBackend = useCallback(async (pid: string, ritualKey: string) => {
+    const query = `/v1/rituals/status?pairId=${encodeURIComponent(pid)}&ritualKey=${encodeURIComponent(ritualKey)}`;
+    const data: any = await apiGet(query);
+    const serverCompleted = Boolean(data?.ritual?.completed);
+
+    setCompleted(serverCompleted);
+    setStatus(serverCompleted ? "completed" : "idle");
+    return serverCompleted;
+  }, [setCompleted]);
+
   const complete = useCallback(async (pairId: string, ritualKey: string = "daily") => {
     const pid = String(pairId || "").trim();
     const wasCompleted = completed;
     if (!pid) {
       setStatus("error");
-      setError("missing_pair_id");
+      setError("pairId is required");
       return;
     }
 
@@ -22,37 +32,31 @@ export function useRitualState() {
     setStatus("saving");
     try {
       await apiPost("/v1/rituals/complete", { pairId: pid, ritualKey });
-      setCompleted(true);
-      setStatus("completed");
+      await syncFromBackend(pid, ritualKey);
     } catch (e: any) {
       setStatus(wasCompleted ? "completed" : "error");
-      setError(e?.message ? String(e.message) : "ritual_complete_failed");
+      setError(normalizeApiErrorMessage(e?.message ? String(e.message) : "ritual_complete_failed"));
     }
-  }, [completed, setCompleted]);
+  }, [completed, syncFromBackend]);
 
   const refresh = useCallback(async (pairId: string, ritualKey: string = "daily") => {
     const pid = String(pairId || "").trim();
     const wasCompleted = completed;
     if (!pid) {
       setStatus(wasCompleted ? "completed" : "idle");
-      setError("missing_pair_id");
+      setError("pairId is required");
       return;
     }
 
     setError(null);
     setStatus("saving");
     try {
-      const query = `/v1/rituals/status?pairId=${encodeURIComponent(pid)}&ritualKey=${encodeURIComponent(ritualKey)}`;
-      const data: any = await apiGet(query);
-      const serverCompleted = Boolean(data?.ritual?.completed);
-
-      setCompleted(serverCompleted);
-      setStatus(serverCompleted ? "completed" : "idle");
+      await syncFromBackend(pid, ritualKey);
     } catch (e: any) {
       setStatus(wasCompleted ? "completed" : "idle");
-      setError(e?.message ? String(e.message) : "ritual_refresh_failed");
+      setError(normalizeApiErrorMessage(e?.message ? String(e.message) : "ritual_refresh_failed"));
     }
-  }, [completed, setCompleted]);
+  }, [completed, syncFromBackend]);
 
   const reset = useCallback(() => {
     setCompleted(false);

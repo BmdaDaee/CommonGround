@@ -9,6 +9,8 @@ export type SharedRitualCardProps = {
   ritualName?: string;
   actionLabel?: string;
   disabled?: boolean;
+  completeDisabled?: boolean;
+  resetDisabled?: boolean;
   onComplete?: () => void;
   onReset?: () => void;
 };
@@ -19,9 +21,14 @@ export default function SharedRitualCard({
   ritualName = "Check-in + one kind text",
   actionLabel,
   disabled = false,
+  completeDisabled = false,
+  resetDisabled = false,
   onComplete,
   onReset,
 }: SharedRitualCardProps) {
+  const disableComplete = disabled || completeDisabled || completed;
+  const disableReset = disabled || resetDisabled;
+
   return (
     <View style={styles.card}>
       <Stack gap={12}>
@@ -38,17 +45,17 @@ export default function SharedRitualCard({
 
         <Row gap={10} wrap>
           <Pressable
-            disabled={disabled}
+            disabled={disableComplete}
             onPress={() => (onComplete ? onComplete() : undefined)}
-            style={[styles.primaryBtn, disabled ? styles.buttonDisabled : null]}
+            style={[styles.primaryBtn, disableComplete ? styles.buttonDisabled : null]}
           >
-            <CGText style={styles.primaryBtnText}>{actionLabel || (completed ? "Completed" : "Mark done")}</CGText>
+            <CGText style={styles.primaryBtnText}>{actionLabel || (completed ? "Completed ✓" : "Mark done")}</CGText>
           </Pressable>
 
           <Pressable
-            disabled={disabled}
+            disabled={disableReset}
             onPress={() => (onReset ? onReset() : undefined)}
-            style={[styles.secondaryBtn, disabled ? styles.buttonDisabled : null]}
+            style={[styles.secondaryBtn, disableReset ? styles.buttonDisabled : null]}
           >
             <CGText style={styles.secondaryBtnText}>Reset</CGText>
           </Pressable>

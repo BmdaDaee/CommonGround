@@ -1,6 +1,31 @@
 import { supabase } from "@/lib/supabase";
 import { apiBaseURL } from "@/lib/runtime";
 
+export function normalizeApiErrorMessage(message: string): string {
+  const raw = String(message || "").trim();
+  if (!raw) return "request_failed";
+
+  if (raw.includes("missing_bearer_token")) return "missing_bearer_token";
+  if (raw.includes("invalid_token")) return "invalid_token";
+  if (raw.includes("pairId is required") || raw.includes("missing_pair_id")) return "pairId is required";
+
+  return raw;
+}
+
+function extractErrorMessage(text: string): string {
+  const raw = String(text || "").trim();
+  if (!raw) return "";
+  try {
+    const data = JSON.parse(raw);
+    if (typeof data?.error === "string" && data.error.trim()) {
+      return data.error.trim();
+    }
+  } catch {
+    // Non-JSON body falls back to raw text.
+  }
+  return raw;
+}
+
 async function getAccessToken(): Promise<string | null> {
   const { data, error } = await supabase.auth.getSession();
   if (error) {
@@ -23,7 +48,8 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`[api] ${res.status} ${res.statusText} ${text}`);
+    const serverError = extractErrorMessage(text);
+    throw new Error(normalizeApiErrorMessage(serverError || `HTTP ${res.status}`));
   }
 
   const contentType = res.headers.get("content-type") || "";
@@ -34,25 +60,25 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   return res.text();
 }
 
-export async function apiGet(path: string) {
+export async function apiGet<T = any>(path: string): Promise<T> {
   return apiFetch(path, { method: "GET" });
 }
 
-export async function apiPost(path: string, body?: unknown) {
+export async function apiPost<T = any>(path: string, body?: unknown): Promise<T> {
   return apiFetch(path, {
     method: "POST",
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
 
-export async function apiPut(path: string, body?: unknown) {
+export async function apiPut<T = any>(path: string, body?: unknown): Promise<T> {
   return apiFetch(path, {
     method: "PUT",
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
 
-export async function apiDelete(path: string) {
+export async function apiDelete<T = any>(path: string): Promise<T> {
   return apiFetch(path, { method: "DELETE" });
 }
 
@@ -78,7 +104,7 @@ export async function apiGetSafe<T = any>(path: string): Promise<{ data: T | nul
     const data = await apiGet<T>(path);
     return { data, error: null };
   } catch (e: any) {
-    const msg = e?.message ? String(e.message) : String(e);
+    const msg = normalizeApiErrorMessage(e?.message ? String(e.message) : String(e));
     return { data: null, error: msg };
   }
 }

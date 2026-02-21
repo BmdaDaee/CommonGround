@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { pairsMe, pulseGet, pulseSet } from "../services/api";
+import { normalizeApiErrorMessage, pairsMe, pulseGet, pulseSet } from "../services/api";
 
 const MOODS = ["Happy", "Calm", "Neutral", "Anxious", "Tired"];
 
@@ -88,7 +88,7 @@ export default function PulsePanel({ defaultPairId = "" }) {
       } catch (e) {
         if (cancelled) return;
         setStatus("err");
-        setError(e?.message || "pulse_get_failed");
+        setError(normalizeApiErrorMessage(e?.message || "pulse_get_failed"));
       }
     }
 
@@ -112,7 +112,7 @@ export default function PulsePanel({ defaultPairId = "" }) {
       setSyncedAt(Date.now());
     } catch (e) {
       setStatus("err");
-      setError(e?.message || "pulse_set_failed");
+      setError(normalizeApiErrorMessage(e?.message || "pulse_set_failed"));
     }
   };
 
@@ -120,6 +120,16 @@ export default function PulsePanel({ defaultPairId = "" }) {
     const t = new Date(pulse?.updatedAt || 0).getTime();
     if (!Number.isFinite(t) || !t) return false;
     return Date.now() - t < 2 * 60 * 1000;
+  })();
+
+  const busy = status === "loading" || status === "saving";
+  const statusNote = (() => {
+    if (status === "loading") return "Loading pulse…";
+    if (status === "saving") return "Syncing pulse…";
+    if (status === "err") return error || "Sync failed";
+    if (!pairId.trim()) return "Enter a pair ID to load pulse";
+    if (status === "ok") return "Ready";
+    return "";
   })();
 
   return (
@@ -196,21 +206,23 @@ export default function PulsePanel({ defaultPairId = "" }) {
 
         <button
           onClick={doSync}
-          disabled={!pairId.trim() || status === "loading" || status === "saving"}
+          disabled={!pairId.trim() || busy}
           style={{
             padding: "10px 14px",
             borderRadius: 12,
             border: "1px solid #ddd",
-            background: !pairId.trim() || status === "loading" || status === "saving" ? "#f3f3f3" : "#fff",
+            background: !pairId.trim() || busy ? "#f3f3f3" : "#fff",
             fontWeight: 900,
-            cursor: !pairId.trim() || status === "loading" || status === "saving" ? "not-allowed" : "pointer",
+            cursor: !pairId.trim() || busy ? "not-allowed" : "pointer",
           }}
         >
-          Sync pulse
+          {status === "saving" ? "Syncing…" : "Sync pulse"}
         </button>
       </div>
 
-      {error ? <div style={{ color: "crimson", fontSize: 12 }}>{error}</div> : null}
+      {statusNote ? (
+        <div style={{ color: status === "err" ? "#b91c1c" : "#4b5563", fontSize: 12 }}>{statusNote}</div>
+      ) : null}
     </div>
   );
 }

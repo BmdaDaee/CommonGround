@@ -14,10 +14,12 @@ fi
 set -a
 source "$ENV_FILE"
 set +a
+echo "OK   env loaded ($ENV_FILE)"
 
 BASE_URL="${BASE_URL:-http://localhost:3001}"
 SUPABASE_PUBLIC_KEY="${SUPABASE_PUBLISHABLE_KEY:-${SUPABASE_ANON_KEY:-}}"
 PYTHON_BIN="$(command -v python3 || true)"
+CURL_BIN="$(command -v curl || true)"
 
 failures=0
 
@@ -96,19 +98,32 @@ fi
 if [[ -z "$PYTHON_BIN" ]]; then
   fail "missing python3"
 fi
+if [[ -z "$CURL_BIN" ]]; then
+  fail "missing curl"
+fi
 
 if (( failures > 0 )); then
   exit 1
 fi
 
-TOKEN_PAYLOAD="$(curl -sS -X POST "${SUPABASE_URL%/}/auth/v1/token?grant_type=password" \
+token_tmp="$(mktemp)"
+TOKEN_STATUS="$(curl -sS -o "$token_tmp" -w "%{http_code}" -X POST "${SUPABASE_URL%/}/auth/v1/token?grant_type=password" \
   -H "apikey: $SUPABASE_PUBLIC_KEY" \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"$CG_TEST_EMAIL\",\"password\":\"$CG_TEST_PASSWORD\"}" || true)"
+TOKEN_PAYLOAD="$(cat "$token_tmp")"
+rm -f "$token_tmp"
+
+if [[ "$TOKEN_STATUS" != "200" ]]; then
+  fail "token generation status=$TOKEN_STATUS"
+  echo "      body=$TOKEN_PAYLOAD"
+  exit 1
+fi
 
 TOKEN="$(printf "%s" "$TOKEN_PAYLOAD" | read_json_field "access_token" || true)"
 if [[ -z "$TOKEN" ]]; then
-  fail "token generation"
+  fail "token generation missing access_token"
+  echo "      body=$TOKEN_PAYLOAD"
   exit 1
 fi
 ok "token generation"

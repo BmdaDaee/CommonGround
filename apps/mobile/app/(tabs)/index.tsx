@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 
 import { Screen, Stack } from "@cg/ui";
 import { useAuth } from "../../context/AuthContext";
-import { apiGetSafe, apiPost } from "../../lib/api";
+import { apiGetSafe, apiPost, normalizeApiErrorMessage } from "../../lib/api";
 import type { MoodKey } from "../../components/dashboard/usePulseState";
 import {
   SearchBarCard,
@@ -81,12 +81,14 @@ export default function HomeScreen() {
     if (resetTimer.current) clearTimeout(resetTimer.current);
     setSyncState('syncing');
 
-    const { error } = await apiPost("/v1/pulse", { pairId, mood: trimmed });
-    if (error) {
+    try {
+      await apiPost("/v1/pulse", { pairId, mood: trimmed });
+    } catch (e: any) {
       setSyncState('error');
-      Alert.alert("Pulse failed", String(error?.error || "Unknown error"));
+      Alert.alert("Pulse failed", normalizeApiErrorMessage(e?.message ? String(e.message) : "Unknown error"));
       return;
     }
+
     setSyncState('success');
 
     resetTimer.current = setTimeout(() => {
@@ -106,7 +108,11 @@ export default function HomeScreen() {
     undefined;
 
   const pulseDisabled = syncState === 'syncing' || !pairId;
-  const ritualButtonsDisabled = ritualStatus === "saving";
+  const ritualSaving = ritualStatus === "saving";
+  const ritualActionLabel =
+    ritualSaving ? "Saving…" :
+    ritualCompleted ? "Completed ✓" :
+    undefined;
 
   const activities = [
     { id: "1", text: "Morning meditation", timestamp: "9:00 AM" },
@@ -120,6 +126,15 @@ export default function HomeScreen() {
       return;
     }
     router.push("/(onboarding)/pair");
+  }
+
+  function onCompleteRitual() {
+    if (!pairId) {
+      Alert.alert("Not paired", "Pair with someone before completing a ritual.");
+      return;
+    }
+    if (ritualSaving || ritualCompleted) return;
+    ritualComplete(pairId, "daily");
   }
 
   return (
@@ -138,9 +153,9 @@ export default function HomeScreen() {
 
         <SharedRitualCard
           completed={ritualCompleted}
-          actionLabel={ritualButtonsDisabled ? "Saving…" : undefined}
-          disabled={ritualButtonsDisabled}
-          onComplete={() => (pairId ? ritualComplete(pairId, "daily") : Alert.alert("Not paired", "Pair with someone before completing a ritual."))}
+          actionLabel={ritualActionLabel}
+          completeDisabled={ritualSaving || ritualCompleted || !pairId}
+          onComplete={onCompleteRitual}
           onReset={() => ritualReset()}
         />
 

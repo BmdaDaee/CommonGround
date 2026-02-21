@@ -414,7 +414,7 @@ export default function App() {
   };
 
   return (
-    <div style={{ maxWidth: 920, margin: "0 auto", padding: 16, textAlign: "left" }}>
+    <div style={{ maxWidth: 980, margin: 0, padding: "20px 24px 28px", textAlign: "left" }}>
       <div style={{ marginBottom: 10 }}>
         <h1 style={{ margin: 0 }}>CommonGround</h1>
         <div style={{ fontSize: 12, opacity: 0.7 }}>
