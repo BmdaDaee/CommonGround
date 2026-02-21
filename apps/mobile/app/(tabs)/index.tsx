@@ -26,7 +26,13 @@ export default function HomeScreen() {
   const [syncState, setSyncState] = useState<PulseSyncState>('idle');
   const resetTimer = useRef<any>(null);
 
-  const { completed: ritualCompleted, complete: ritualComplete, reset: ritualReset } = useRitualState();
+  const {
+    completed: ritualCompleted,
+    status: ritualStatus,
+    complete: ritualComplete,
+    reset: ritualReset,
+    refresh: ritualRefresh,
+  } = useRitualState();
 
   useEffect(() => {
     return () => {
@@ -39,7 +45,7 @@ export default function HomeScreen() {
 
     async function loadPulse() {
       if (!pairId) {
-        setPulse(null);
+        setSelectedMood("Neutral");
         return;
       }
       const { data, error } = await apiGetSafe(`/v1/pulse?pairId=${encodeURIComponent(pairId)}`);
@@ -55,6 +61,11 @@ export default function HomeScreen() {
     loadPulse();
     return () => { cancelled = true; };
   }, [pairId]);
+
+  useEffect(() => {
+    if (!pairId) return;
+    ritualRefresh(pairId, "daily");
+  }, [pairId, ritualRefresh]);
 
   async function submitMood(mood: MoodKey) {
     const trimmed = String(mood || "").trim();
@@ -95,6 +106,7 @@ export default function HomeScreen() {
     undefined;
 
   const pulseDisabled = syncState === 'syncing' || !pairId;
+  const ritualButtonsDisabled = ritualStatus === "saving";
 
   const activities = [
     { id: "1", text: "Morning meditation", timestamp: "9:00 AM" },
@@ -126,6 +138,8 @@ export default function HomeScreen() {
 
         <SharedRitualCard
           completed={ritualCompleted}
+          actionLabel={ritualButtonsDisabled ? "Saving…" : undefined}
+          disabled={ritualButtonsDisabled}
           onComplete={() => (pairId ? ritualComplete(pairId, "daily") : Alert.alert("Not paired", "Pair with someone before completing a ritual."))}
           onReset={() => ritualReset()}
         />

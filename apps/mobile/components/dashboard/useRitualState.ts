@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { usePersistedState } from "./usePersistedState";
-import { apiPost } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
 
 type RitualStatus = "idle" | "saving" | "completed" | "error";
 
@@ -9,8 +9,9 @@ export function useRitualState() {
   const [status, setStatus] = useState<RitualStatus>(completed ? "completed" : "idle");
   const [error, setError] = useState<string | null>(null);
 
-  async function complete(pairId: string, ritualKey: string = "daily") {
+  const complete = useCallback(async (pairId: string, ritualKey: string = "daily") => {
     const pid = String(pairId || "").trim();
+    const wasCompleted = completed;
     if (!pid) {
       setStatus("error");
       setError("missing_pair_id");
@@ -24,16 +25,40 @@ export function useRitualState() {
       setCompleted(true);
       setStatus("completed");
     } catch (e: any) {
-      setStatus("error");
+      setStatus(wasCompleted ? "completed" : "error");
       setError(e?.message ? String(e.message) : "ritual_complete_failed");
     }
-  }
+  }, [completed, setCompleted]);
 
-  function reset() {
+  const refresh = useCallback(async (pairId: string, ritualKey: string = "daily") => {
+    const pid = String(pairId || "").trim();
+    const wasCompleted = completed;
+    if (!pid) {
+      setStatus(wasCompleted ? "completed" : "idle");
+      setError("missing_pair_id");
+      return;
+    }
+
+    setError(null);
+    setStatus("saving");
+    try {
+      const query = `/v1/rituals/status?pairId=${encodeURIComponent(pid)}&ritualKey=${encodeURIComponent(ritualKey)}`;
+      const data: any = await apiGet(query);
+      const serverCompleted = Boolean(data?.ritual?.completed);
+
+      setCompleted(serverCompleted);
+      setStatus(serverCompleted ? "completed" : "idle");
+    } catch (e: any) {
+      setStatus(wasCompleted ? "completed" : "idle");
+      setError(e?.message ? String(e.message) : "ritual_refresh_failed");
+    }
+  }, [completed, setCompleted]);
+
+  const reset = useCallback(() => {
     setCompleted(false);
     setStatus("idle");
     setError(null);
-  }
+  }, [setCompleted]);
 
   const label = useMemo(() => {
     if (status === "saving") return "Saving…";
@@ -42,5 +67,5 @@ export function useRitualState() {
     return "Pending";
   }, [status]);
 
-  return { completed, status, label, error, complete, reset };
+  return { completed, status, label, error, complete, reset, refresh };
 }

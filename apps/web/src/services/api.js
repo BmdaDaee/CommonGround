@@ -39,6 +39,10 @@ export async function pulseGet(pairId) {
   });
 }
 
+export async function pairsMe() {
+  return apiFetch("/v1/pairs/me", { method: "GET" });
+}
+
 export async function pulseSet(pairId, mood) {
   if (!pairId) throw new Error("missing_pair_id");
   return apiFetch(`/v1/pulse`, {

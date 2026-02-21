@@ -7,6 +7,8 @@ export type SharedRitualCardProps = {
   title?: string;
   completed?: boolean;
   ritualName?: string;
+  actionLabel?: string;
+  disabled?: boolean;
   onComplete?: () => void;
   onReset?: () => void;
 };
@@ -15,6 +17,8 @@ export default function SharedRitualCard({
   title = "Shared Ritual",
   completed = false,
   ritualName = "Check-in + one kind text",
+  actionLabel,
+  disabled = false,
   onComplete,
   onReset,
 }: SharedRitualCardProps) {
@@ -34,15 +38,17 @@ export default function SharedRitualCard({
 
         <Row gap={10} wrap>
           <Pressable
+            disabled={disabled}
             onPress={() => (onComplete ? onComplete() : undefined)}
-            style={styles.primaryBtn}
+            style={[styles.primaryBtn, disabled ? styles.buttonDisabled : null]}
           >
-            <CGText style={styles.primaryBtnText}>{completed ? "Completed" : "Mark done"}</CGText>
+            <CGText style={styles.primaryBtnText}>{actionLabel || (completed ? "Completed" : "Mark done")}</CGText>
           </Pressable>
 
           <Pressable
+            disabled={disabled}
             onPress={() => (onReset ? onReset() : undefined)}
-            style={styles.secondaryBtn}
+            style={[styles.secondaryBtn, disabled ? styles.buttonDisabled : null]}
           >
             <CGText style={styles.secondaryBtnText}>Reset</CGText>
           </Pressable>
@@ -80,4 +86,5 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   secondaryBtnText: { fontSize: 14, fontWeight: "800" },
+  buttonDisabled: { opacity: 0.55 },
 });

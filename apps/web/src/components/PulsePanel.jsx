@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { pulseGet, pulseSet } from "../services/api";
+import { pairsMe, pulseGet, pulseSet } from "../services/api";
 
 const MOODS = ["Happy", "Calm", "Neutral", "Anxious", "Tired"];
 
@@ -18,6 +18,8 @@ function formatAge(iso) {
 
 export default function PulsePanel({ defaultPairId = "" }) {
   const [pairId, setPairId] = useState(defaultPairId);
+  const [autoPairId, setAutoPairId] = useState(defaultPairId);
+  const [autoPairKnown, setAutoPairKnown] = useState(Boolean(defaultPairId));
   const [mood, setMood] = useState("Calm");
   const [pulse, setPulse] = useState(null);
   const [status, setStatus] = useState("idle"); // idle | loading | saving | ok | err
@@ -31,6 +33,37 @@ export default function PulsePanel({ defaultPairId = "" }) {
     const id = setInterval(() => setSyncedAt(Date.now()), 1000);
     return () => clearInterval(id);
   }, [pulse?.updatedAt]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function detectPair() {
+      try {
+        const data = await pairsMe();
+        if (cancelled) return;
+
+        const detectedPairId = String(data?.pair?.id || "").trim();
+        setAutoPairKnown(true);
+        setAutoPairId(detectedPairId);
+
+        if (detectedPairId) {
+          setPairId((prev) => {
+            const current = String(prev || "").trim();
+            return current ? prev : detectedPairId;
+          });
+        }
+      } catch {
+        if (cancelled) return;
+        setAutoPairKnown(true);
+        setAutoPairId("");
+      }
+    }
+
+    detectPair();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +132,7 @@ export default function PulsePanel({ defaultPairId = "" }) {
         display: "flex",
         flexDirection: "column",
         gap: 12,
+        textAlign: "left",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
@@ -122,6 +156,10 @@ export default function PulsePanel({ defaultPairId = "" }) {
         <div style={{ fontSize: 12, opacity: 0.7 }}>
           {status === "loading" ? "Loading…" : status === "saving" ? "Syncing…" : status === "ok" ? "Ready" : status === "err" ? "Error" : ""}
         </div>
+      </div>
+
+      <div style={{ fontSize: 12, opacity: 0.68 }}>
+        {!autoPairKnown ? "Detecting pair…" : autoPairId ? `Auto pair: ${autoPairId}` : "No active pair"}
       </div>
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
