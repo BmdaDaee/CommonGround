@@ -16,23 +16,44 @@ function formatAge(iso) {
   return `${h}h ago`;
 }
 
+function shortId(id) {
+  const s = String(id || "").trim();
+  if (!s) return "";
+  if (s.length <= 10) return s;
+  return `${s.slice(0, 6)}…${s.slice(-4)}`;
+}
+
 export default function PulsePanel({ defaultPairId = "" }) {
   const [pairId, setPairId] = useState(defaultPairId);
   const [autoPairId, setAutoPairId] = useState(defaultPairId);
   const [autoPairKnown, setAutoPairKnown] = useState(Boolean(defaultPairId));
+
   const [mood, setMood] = useState("Calm");
-  const [pulse, setPulse] = useState(null);
+
+  const [pulses, setPulses] = useState([]);
+  const [lastActorUserId, setLastActorUserId] = useState(null);
+
   const [status, setStatus] = useState("idle"); // idle | loading | saving | ok | err
   const [error, setError] = useState("");
   const [syncedAt, setSyncedAt] = useState(0);
 
-  const lastUpdated = useMemo(() => formatAge(pulse?.updatedAt), [pulse?.updatedAt, syncedAt]);
+  const newestPulse = useMemo(() => {
+    if (!Array.isArray(pulses) || pulses.length === 0) return null;
+    const sorted = [...pulses].sort((a, b) => {
+      const ta = new Date(a?.updatedAt || 0).getTime();
+      const tb = new Date(b?.updatedAt || 0).getTime();
+      return tb - ta;
+    });
+    return sorted[0] || null;
+  }, [pulses]);
+
+  const lastUpdated = useMemo(() => formatAge(newestPulse?.updatedAt), [newestPulse?.updatedAt, syncedAt]);
 
   useEffect(() => {
-    if (!pulse?.updatedAt) return;
+    if (!newestPulse?.updatedAt) return;
     const id = setInterval(() => setSyncedAt(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [pulse?.updatedAt]);
+  }, [newestPulse?.updatedAt]);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,7 +92,7 @@ export default function PulsePanel({ defaultPairId = "" }) {
     async function run() {
       setError("");
       if (!pairId.trim()) {
-        setPulse(null);
+        setPulses([]);
         setStatus("idle");
         return;
       }
@@ -81,9 +102,15 @@ export default function PulsePanel({ defaultPairId = "" }) {
         const data = await pulseGet(pairId.trim());
         if (cancelled) return;
 
-        const p = data?.pulse || null;
-        setPulse(p);
-        if (p?.mood) setMood(p.mood);
+        const list = Array.isArray(data?.pulses) ? data.pulses : [];
+        setPulses(list);
+
+        const mine =
+          lastActorUserId ? list.find((p) => p?.userId === lastActorUserId) : null;
+
+        if (mine?.mood) setMood(mine.mood);
+        else if (list[0]?.mood) setMood(list[0].mood);
+
         setStatus("ok");
       } catch (e) {
         if (cancelled) return;
@@ -96,7 +123,7 @@ export default function PulsePanel({ defaultPairId = "" }) {
     return () => {
       cancelled = true;
     };
-  }, [pairId]);
+  }, [pairId, lastActorUserId]);
 
   const doSync = async () => {
     const pid = pairId.trim();
@@ -106,8 +133,28 @@ export default function PulsePanel({ defaultPairId = "" }) {
     setError("");
     try {
       const data = await pulseSet(pid, mood);
-      const p = data?.pulse || null;
-      setPulse(p);
+      const row = data?.pulse || null;
+
+      if (row?.userId) setLastActorUserId(row.userId);
+
+      // Merge updated row into pulses list (best effort)
+      setPulses((prev) => {
+        const list = Array.isArray(prev) ? [...prev] : [];
+        if (!row?.userId) return list;
+
+        const nextRow = {
+          userId: row.userId,
+          mood: row.mood,
+          updatedAt: row.updatedAt,
+        };
+
+        const idx = list.findIndex((p) => p?.userId === row.userId);
+        if (idx >= 0) list[idx] = nextRow;
+        else list.push(nextRow);
+
+        return list;
+      });
+
       setStatus("ok");
       setSyncedAt(Date.now());
     } catch (e) {
@@ -117,12 +164,13 @@ export default function PulsePanel({ defaultPairId = "" }) {
   };
 
   const fresh = (() => {
-    const t = new Date(pulse?.updatedAt || 0).getTime();
+    const t = new Date(newestPulse?.updatedAt || 0).getTime();
     if (!Number.isFinite(t) || !t) return false;
     return Date.now() - t < 2 * 60 * 1000;
   })();
 
   const busy = status === "loading" || status === "saving";
+
   const statusNote = (() => {
     if (status === "loading") return "Loading pulse…";
     if (status === "saving") return "Syncing pulse…";
@@ -131,6 +179,15 @@ export default function PulsePanel({ defaultPairId = "" }) {
     if (status === "ok") return "Ready";
     return "";
   })();
+
+  const pulseRows = useMemo(() => {
+    const list = Array.isArray(pulses) ? [...pulses] : [];
+    return list.sort((a, b) => {
+      const ta = new Date(a?.updatedAt || 0).getTime();
+      const tb = new Date(b?.updatedAt || 0).getTime();
+      return tb - ta;
+    });
+  }, [pulses]);
 
   return (
     <div
@@ -159,7 +216,7 @@ export default function PulsePanel({ defaultPairId = "" }) {
             }}
           />
           <div style={{ fontSize: 12, opacity: 0.7 }}>
-            {pulse?.updatedAt ? `Updated ${lastUpdated}` : "No pulse yet"}
+            {newestPulse?.updatedAt ? `Updated ${lastUpdated}` : "No pulse yet"}
           </div>
         </div>
 
@@ -220,9 +277,41 @@ export default function PulsePanel({ defaultPairId = "" }) {
         </button>
       </div>
 
-      {statusNote ? (
-        <div style={{ color: status === "err" ? "#b91c1c" : "#4b5563", fontSize: 12 }}>{statusNote}</div>
-      ) : null}
+      <div style={{ fontSize: 12, opacity: 0.8 }}>
+        {statusNote}
+      </div>
+
+      <div style={{ borderTop: "1px solid #eee", paddingTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ fontWeight: 900, fontSize: 12, opacity: 0.85 }}>Relationship pulses</div>
+
+        {pulseRows.length === 0 ? (
+          <div style={{ fontSize: 12, opacity: 0.7 }}>No pulses yet</div>
+        ) : (
+          pulseRows.map((p) => (
+            <div
+              key={p.userId || Math.random()}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 10,
+                fontSize: 12,
+                padding: "8px 10px",
+                border: "1px solid #eee",
+                borderRadius: 12,
+              }}
+            >
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <div style={{ fontWeight: 900 }}>{p.mood || "—"}</div>
+                <div style={{ opacity: 0.75 }}>{p.updatedAt ? `· ${formatAge(p.updatedAt)}` : ""}</div>
+              </div>
+
+              <div style={{ opacity: 0.65 }} title={p.userId || ""}>
+                {p.userId ? shortId(p.userId) : ""}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }

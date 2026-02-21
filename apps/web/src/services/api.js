@@ -45,7 +45,7 @@ export async function apiFetch(path, options = {}) {
 }
 
 export async function pulseGet(pairId) {
-  if (!pairId) return { pulse: null };
+  if (!pairId) return { pairId: null, pulses: [] };
   return apiFetch(`/v1/pulse?pairId=${encodeURIComponent(pairId)}`, {
     method: "GET",
   });
