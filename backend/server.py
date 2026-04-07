@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, status
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -18,12 +18,10 @@ from emergentintegrations.llm.chat import LlmChat, UserMessage
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Config
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY')
 SUPABASE_SECRET_KEY = os.environ.get('SUPABASE_SECRET_KEY')
@@ -86,17 +84,30 @@ GROWTH_MODULES = [
     {"id": "trust", "title": "Trust Rebuild", "description": "Repair and strengthen your foundation of trust", "days": 14, "icon": "shield", "outcomes": ["Feel secure", "Open up more", "Heal together"]},
 ]
 
-SPARKS = [
-    "What is one small thing I did this week that made you feel loved?",
-    "If we could teleport anywhere right now, where would you take me?",
-    "What's your favorite memory of us?",
-    "What's something you've always wanted to try together?",
-    "If our relationship was a movie, what would the title be?",
-    "What's one thing I do that always makes you smile?",
-    "What's something you're grateful for about us today?",
-    "If we had one day with no responsibilities, how would we spend it?",
-    "What's a song that makes you think of us?",
-    "What's the bravest thing you've ever done in our relationship?",
+# ============== DEEPLYUS CONTENT ==============
+
+DEEPLY_PROMPTS = [
+    {"category": "fantasy", "prompt": "What's a fantasy you've never told me about?"},
+    {"category": "fantasy", "prompt": "If we had zero inhibitions tonight, what would you want to try?"},
+    {"category": "desire", "prompt": "What's something I do that turns you on that I might not know about?"},
+    {"category": "desire", "prompt": "Where do you most like to be touched?"},
+    {"category": "insecurity", "prompt": "What makes you feel insecure about your body or our intimacy?"},
+    {"category": "insecurity", "prompt": "Is there anything you've been afraid to ask for in bed?"},
+    {"category": "exploration", "prompt": "What's something new you'd be curious to explore together?"},
+    {"category": "exploration", "prompt": "Is there a kink or interest you've been curious about?"},
+    {"category": "connection", "prompt": "What makes you feel most desired by me?"},
+    {"category": "connection", "prompt": "When do you feel the most intimate connection with me?"},
+    {"category": "aftercare", "prompt": "What do you need from me after we're intimate?"},
+    {"category": "aftercare", "prompt": "How can I make you feel more safe and loved during intimate moments?"},
+]
+
+DEEPLY_EXERCISES = [
+    {"id": "sensate-focus", "title": "Sensate Focus", "description": "Take turns exploring each other's bodies without goal-oriented touch. Focus purely on sensation and presence.", "duration": "30 min", "difficulty": "Medium", "category": "exploration"},
+    {"id": "desire-mapping", "title": "Desire Mapping", "description": "Draw on each other's bodies where you like to be touched, using different pressures to indicate intensity.", "duration": "20 min", "difficulty": "Easy", "category": "communication"},
+    {"id": "fantasy-share", "title": "Fantasy Share", "description": "Take turns sharing one fantasy each. No judgment, just listening and curiosity.", "duration": "15 min", "difficulty": "Hard", "category": "vulnerability"},
+    {"id": "yes-no-maybe", "title": "Yes/No/Maybe List", "description": "Go through a list of intimate activities and mark yes, no, or maybe. Compare and discuss.", "duration": "30 min", "difficulty": "Medium", "category": "boundaries"},
+    {"id": "aftercare-talk", "title": "Aftercare Conversation", "description": "Discuss what each of you needs after intimacy - physical, emotional, verbal.", "duration": "15 min", "difficulty": "Easy", "category": "care"},
+    {"id": "insecurity-share", "title": "Body Insecurity Share", "description": "Share one insecurity about your body. Partner responds only with what they love about that part.", "duration": "10 min", "difficulty": "Hard", "category": "vulnerability"},
 ]
 
 # ============== MODELS ==============
@@ -107,7 +118,6 @@ class UserProfile(BaseModel):
     email: str
     display_name: Optional[str] = None
     avatar_url: Optional[str] = None
-    avatar_prompt: Optional[str] = None
     appearance: Optional[str] = None
     zodiac_sign: Optional[str] = None
     partner_zodiac: Optional[str] = None
@@ -116,12 +126,60 @@ class UserProfile(BaseModel):
     birth_location: Optional[str] = None
     astrology_profile: Optional[Dict[str, Any]] = None
     active_pair_id: Optional[str] = None
+    deeply_unlocked: bool = False
+    onboarding_complete: bool = False
     favorites: Dict[str, List[str]] = Field(default_factory=lambda: {"music": [], "games": [], "movies": []})
-    playlist: List[Dict[str, str]] = Field(default_factory=list)
-    watching: Dict[str, List[Dict[str, Any]]] = Field(default_factory=lambda: {"anime": [], "shows": []})
-    quick_answers: Dict[str, str] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Pair(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    code: str
+    status: str = "PENDING"  # PENDING, ACTIVE
+    member_a_uid: str
+    member_a_name: Optional[str] = None
+    member_b_uid: Optional[str] = None
+    member_b_name: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class DailyQuestion(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    pair_id: Optional[str] = None
+    question: str
+    category: str
+    date: str
+    answers: Dict[str, str] = Field(default_factory=dict)  # {user_id: answer}
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ChatMessage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    pair_id: Optional[str] = None
+    sender_uid: str
+    text: str
+    message_type: str = "user"  # user, assistant, system, media
+    media_url: Optional[str] = None
+    media_type: Optional[str] = None  # image, video, audio
+    metadata: Optional[Dict[str, Any]] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CouplePortrait(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    pair_id: Optional[str] = None
+    user_id: str
+    prompt: str
+    style: str = "anime"
+    image_data: Optional[str] = None  # base64
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class DeeplyItem(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    pair_id: Optional[str] = None
+    user_id: str
+    item_type: str  # fantasy, desire, insecurity, boundary, note
+    text: str
+    shared_with_partner: bool = False
+    partner_response: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class CalendarEvent(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -138,7 +196,7 @@ class ListItem(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str
     pair_id: Optional[str] = None
-    list_type: str  # shopping, wishlist
+    list_type: str
     text: str
     checked: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -160,42 +218,11 @@ class ModuleProgress(BaseModel):
     started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     completed_at: Optional[datetime] = None
 
-class CouplePortrait(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    user_id: str
-    pair_id: Optional[str] = None
-    prompt: str
-    image_url: Optional[str] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-class DailyQuestion(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    user_id: str
-    question: str
-    category: str
-    date: str
-    answer: Optional[str] = None
-    partner_answer: Optional[str] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-class ChatMessage(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    pair_id: str
-    sender_uid: str
-    text: str
-    message_type: str = "user"
-    media_url: Optional[str] = None
-    media_type: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
 class Session(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str
     mode: str = "commonground"
     vibe: str = "realtalk"
-    tone_state: Optional[Dict[str, Any]] = None
-    pattern_tracker: Dict[str, Any] = Field(default_factory=lambda: {"counts": {}, "topic_counts": {}, "fired_topics": {}})
     history: List[Dict[str, Any]] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -220,25 +247,12 @@ class UpdateProfileRequest(BaseModel):
     birth_date: Optional[str] = None
     birth_time: Optional[str] = None
     birth_location: Optional[str] = None
+    deeply_unlocked: Optional[bool] = None
+    onboarding_complete: Optional[bool] = None
 
 class UpdateFavoritesRequest(BaseModel):
     category: str
     items: List[str]
-
-class AddPlaylistRequest(BaseModel):
-    title: str
-    artist: str
-    cover: Optional[str] = None
-
-class AddWatchingRequest(BaseModel):
-    media_type: str  # anime, shows
-    title: str
-    current_episode: Optional[str] = None
-    status: str = "watching"
-
-class QuickAnswerRequest(BaseModel):
-    key: str
-    value: str
 
 class CreateEventRequest(BaseModel):
     title: str
@@ -254,14 +268,6 @@ class CreateListItemRequest(BaseModel):
 class JournalRequest(BaseModel):
     text: str
 
-class GenerateAvatarRequest(BaseModel):
-    appearance: str
-    style: str = "anime"
-
-class GeneratePortraitRequest(BaseModel):
-    prompt: str
-    style: str = "anime"
-
 class GenerateAstrologyRequest(BaseModel):
     birth_date: str
     birth_time: Optional[str] = None
@@ -274,12 +280,28 @@ class ModuleExerciseRequest(BaseModel):
 class AnswerQuestionRequest(BaseModel):
     answer: str
 
+class JoinPairRequest(BaseModel):
+    code: str
+
+class SendMessageRequest(BaseModel):
+    text: str
+    media_data: Optional[str] = None  # base64
+    media_type: Optional[str] = None
+
+class DeeplyItemRequest(BaseModel):
+    item_type: str
+    text: str
+    shared_with_partner: bool = False
+
+class GeneratePortraitRequest(BaseModel):
+    prompt: str
+    style: str = "anime"
+
 # ============== AUTH ==============
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing authentication")
-    
     try:
         api_key = SUPABASE_SECRET_KEY or SUPABASE_ANON_KEY
         async with httpx.AsyncClient() as client:
@@ -310,15 +332,13 @@ def serialize_doc(doc: dict) -> dict:
 def get_today_date() -> str:
     return date.today().isoformat()
 
-# ============== AI HELPERS ==============
+def generate_pair_code() -> str:
+    import string
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
 async def generate_ai_text(prompt: str, session_id: str, system_message: str = "") -> str:
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=session_id,
-            system_message=system_message
-        )
+        chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=session_id, system_message=system_message)
         chat.with_model("openai", "gpt-4o")
         response = await chat.send_message(UserMessage(text=prompt))
         return response
@@ -329,76 +349,34 @@ async def generate_ai_text(prompt: str, session_id: str, system_message: str = "
 # ============== TASK PROMPTS ==============
 
 TASK_PROMPTS = {
-    "draft_reply": """Help craft a thoughtful reply to their partner.
-Context: {context}
-Vibe: {vibe}
-Write a reply that sounds natural, honest, and emotionally intelligent. 2-4 sentences.""",
-
-    "vent_analysis": """Someone vented about a relationship situation.
-What they said: {context}
-Break down: 1) Their real feelings 2) Partner's possible feelings 3) The gap 4) One thing to try. Keep it short.""",
-
-    "date_plan": """Plan a meaningful date activity.
-Context: {context}
-Suggest something specific they could do THIS WEEK. Be concrete.""",
-
-    "spark": """Create a conversation starter.
-Context: {context}
-Give ONE question that invites real sharing without feeling like therapy homework.""",
-
-    "note": """Write a heartfelt note to their partner.
-Context: {context}
-Make it genuine, not cheesy. 1-3 sentences.""",
-
-    "horoscope": """Generate a relationship-focused daily horoscope.
-Sign: {sign}, Partner Sign: {partner_sign}, Date: {date}
-Include: Overall energy, Love tip, Communication advice, Lucky moment to connect.""",
-
-    "trust_advice": """Provide trust-building guidance.
-Exercise: {exercise}
-Context: {context}
-Advice on: Setup, mindset, handling emotions, closing the exercise.""",
-
-    "astrology": """Generate an astrology profile.
-Birth Date: {birth_date}
-Birth Time: {birth_time}
-Birth Location: {birth_location}
-Generate sun sign, moon sign (estimate if no time), rising sign (estimate if no time), and a personality summary focused on love and relationships. Format as JSON with keys: sun_sign, moon_sign, rising_sign, summary.""",
-
-    "journal_analysis": """Analyze this journal entry with empathy.
-Entry: {text}
-Provide: 1) What emotions you sense 2) What might be underneath 3) A gentle reflection question. Be warm, not clinical.""",
-
-    "module_exercise": """Generate a relationship exercise.
-Module: {module_title} - {module_description}
-Day {day} of {total_days}
-Outcomes: {outcomes}
-Create a specific exercise for today. Include: Title, Instructions (3-5 steps), Reflection question, Time needed.""",
-
-    "gift_ideas": """Suggest thoughtful gift ideas.
-Context: {context}
-Partner info: {partner_info}
-Give 5 specific gift ideas ranging from small gestures to bigger gifts. Be creative and personal.""",
-
-    "ingredients": """Suggest ingredients for a recipe or meal.
-Context: {context}
-Provide a shopping list with quantities. Keep it practical.""",
-
-    "ignite": """Suggest something spicy and intimate for couples.
-Context: {context}
-Vibe: {vibe}
-Be tasteful but not clinical. Suggest something to try together tonight.""",
+    "draft_reply": "Help craft a thoughtful reply. Context: {context}. Vibe: {vibe}. Write natural, honest, emotionally intelligent. 2-4 sentences.",
+    "vent_analysis": "Someone vented: {context}. Break down: 1) Their real feelings 2) Partner's possible feelings 3) The gap 4) One thing to try.",
+    "date_plan": "Plan a meaningful date. Context: {context}. Suggest something specific for THIS WEEK.",
+    "spark": "Create a conversation starter. Context: {context}. ONE question that invites real sharing.",
+    "note": "Write a heartfelt note. Context: {context}. Genuine, not cheesy. 1-3 sentences.",
+    "horoscope": "Generate relationship horoscope. Sign: {sign}, Partner: {partner_sign}, Date: {date}. Include: energy, love tip, communication advice.",
+    "trust_advice": "Trust exercise guidance. Exercise: {exercise}. Context: {context}. Advice on setup, mindset, handling emotions.",
+    "astrology": "Generate astrology profile. Birth: {birth_date}, Time: {birth_time}, Location: {birth_location}. Return JSON with sun_sign, moon_sign, rising_sign, summary.",
+    "journal_analysis": "Analyze journal entry with empathy. Entry: {text}. Provide: emotions sensed, what's underneath, gentle reflection question.",
+    "module_exercise": "Generate relationship exercise. Module: {module_title} - {module_description}. Day {day} of {total_days}. Outcomes: {outcomes}. Include title, instructions, reflection question, time.",
+    "gift_ideas": "Suggest gift ideas. Context: {context}. Partner info: {partner_info}. Give 5 specific ideas.",
+    "ingredients": "Suggest ingredients. Context: {context}. Provide shopping list with quantities.",
+    "ignite": "Suggest something intimate for tonight. Context: {context}. Vibe: {vibe}. Be tasteful but not clinical. Something to try together.",
+    "deeply_fantasy": "Help explore a fantasy thoughtfully. Context: {context}. Be open, non-judgmental, and help them articulate what they want.",
+    "deeply_insecurity": "Help process an intimacy insecurity. Context: {context}. Be gentle, validating, and offer perspective.",
+    "deeply_exploration": "Suggest ways to explore this desire. Context: {context}. Be practical, safe, and consensual.",
+    "portrait_prompt": "Create an artistic prompt for a couple portrait. Their description: {context}. Style: {style}. Create a detailed, romantic prompt for AI image generation.",
 }
 
 # ============== ROUTES ==============
 
 @api_router.get("/")
 async def root():
-    return {"message": "CommonGround API - Full Platform", "status": "ok", "ai": "BentlyAI"}
+    return {"message": "CommonGround API", "status": "ok", "ai": "BentlyAI"}
 
 @api_router.get("/health")
 async def health():
-    return {"ok": True, "service": "commonground-api", "ai": "BentlyAI", "features": ["chat", "horoscope", "trust", "modules", "journal", "calendar", "lists", "portraits"]}
+    return {"ok": True, "service": "commonground-api", "ai": "BentlyAI"}
 
 # === Auth/Profile ===
 
@@ -412,7 +390,13 @@ async def create_session(current_user: dict = Depends(get_current_user)):
         user_dict["updated_at"] = user_dict["updated_at"].isoformat()
         await db.users.insert_one(user_dict)
         user_doc = user_dict
-    return {"uid": current_user["uid"], "user": serialize_doc(user_doc)}
+    
+    # Get pair info if exists
+    pair = None
+    if user_doc.get("active_pair_id"):
+        pair = await db.pairs.find_one({"id": user_doc["active_pair_id"]}, {"_id": 0})
+    
+    return {"uid": current_user["uid"], "user": serialize_doc(user_doc), "pair": serialize_doc(pair) if pair else None}
 
 @api_router.get("/profile")
 async def get_profile(current_user: dict = Depends(get_current_user)):
@@ -424,16 +408,88 @@ async def get_profile(current_user: dict = Depends(get_current_user)):
 @api_router.put("/profile")
 async def update_profile(data: UpdateProfileRequest, current_user: dict = Depends(get_current_user)):
     update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
-    for field in ["display_name", "zodiac_sign", "partner_zodiac", "appearance", "birth_date", "birth_time", "birth_location"]:
+    for field in ["display_name", "zodiac_sign", "partner_zodiac", "appearance", "birth_date", "birth_time", "birth_location", "deeply_unlocked", "onboarding_complete"]:
         val = getattr(data, field, None)
         if val is not None:
-            update_data[field] = val.lower() if field in ["zodiac_sign", "partner_zodiac"] else val
+            update_data[field] = val.lower() if field in ["zodiac_sign", "partner_zodiac"] and isinstance(val, str) else val
     
     await db.users.update_one({"supabase_uid": current_user["uid"]}, {"$set": update_data})
     user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]}, {"_id": 0})
     return serialize_doc(user_doc)
 
-# === Favorites/Playlist/Watching ===
+# === Pairing System ===
+
+@api_router.post("/pairs/create")
+async def create_pair(current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    if user_doc and user_doc.get("active_pair_id"):
+        existing = await db.pairs.find_one({"id": user_doc["active_pair_id"]}, {"_id": 0})
+        if existing:
+            return {"pair": serialize_doc(existing), "already_exists": True}
+    
+    code = generate_pair_code()
+    while await db.pairs.find_one({"code": code, "status": "PENDING"}):
+        code = generate_pair_code()
+    
+    pair = Pair(code=code, member_a_uid=current_user["uid"], member_a_name=user_doc.get("display_name"))
+    pair_dict = pair.model_dump()
+    pair_dict["created_at"] = pair_dict["created_at"].isoformat()
+    await db.pairs.insert_one(pair_dict)
+    
+    await db.users.update_one({"supabase_uid": current_user["uid"]}, {"$set": {"active_pair_id": pair.id}})
+    
+    return {"pair": serialize_doc(pair_dict), "code": code}
+
+@api_router.post("/pairs/join")
+async def join_pair(data: JoinPairRequest, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    if user_doc and user_doc.get("active_pair_id"):
+        raise HTTPException(status_code=400, detail="Already in a pair")
+    
+    pair = await db.pairs.find_one({"code": data.code.upper(), "status": "PENDING"})
+    if not pair:
+        raise HTTPException(status_code=404, detail="Pair not found or already active")
+    
+    if pair["member_a_uid"] == current_user["uid"]:
+        raise HTTPException(status_code=400, detail="Cannot join your own pair")
+    
+    await db.pairs.update_one(
+        {"id": pair["id"]},
+        {"$set": {"member_b_uid": current_user["uid"], "member_b_name": user_doc.get("display_name"), "status": "ACTIVE"}}
+    )
+    await db.users.update_one({"supabase_uid": current_user["uid"]}, {"$set": {"active_pair_id": pair["id"]}})
+    
+    updated_pair = await db.pairs.find_one({"id": pair["id"]}, {"_id": 0})
+    return {"pair": serialize_doc(updated_pair)}
+
+@api_router.get("/pairs/me")
+async def get_my_pair(current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    if not user_doc or not user_doc.get("active_pair_id"):
+        return {"pair": None}
+    
+    pair = await db.pairs.find_one({"id": user_doc["active_pair_id"]}, {"_id": 0})
+    
+    # Get partner info
+    partner = None
+    if pair:
+        partner_uid = pair["member_b_uid"] if pair["member_a_uid"] == current_user["uid"] else pair["member_a_uid"]
+        if partner_uid:
+            partner_doc = await db.users.find_one({"supabase_uid": partner_uid}, {"_id": 0, "display_name": 1, "avatar_url": 1, "zodiac_sign": 1})
+            partner = serialize_doc(partner_doc) if partner_doc else None
+    
+    return {"pair": serialize_doc(pair) if pair else None, "partner": partner}
+
+@api_router.post("/pairs/leave")
+async def leave_pair(current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    if not user_doc or not user_doc.get("active_pair_id"):
+        raise HTTPException(status_code=400, detail="Not in a pair")
+    
+    await db.users.update_one({"supabase_uid": current_user["uid"]}, {"$set": {"active_pair_id": None}})
+    return {"left": True}
+
+# === Favorites ===
 
 @api_router.get("/favorites")
 async def get_favorites(current_user: dict = Depends(get_current_user)):
@@ -444,36 +500,9 @@ async def get_favorites(current_user: dict = Depends(get_current_user)):
 async def update_favorites(data: UpdateFavoritesRequest, current_user: dict = Depends(get_current_user)):
     if data.category not in ["music", "games", "movies"]:
         raise HTTPException(status_code=400, detail="Invalid category")
-    await db.users.update_one(
-        {"supabase_uid": current_user["uid"]},
-        {"$set": {f"favorites.{data.category}": data.items, "updated_at": datetime.now(timezone.utc).isoformat()}}
-    )
+    await db.users.update_one({"supabase_uid": current_user["uid"]}, {"$set": {f"favorites.{data.category}": data.items}})
     user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]}, {"_id": 0})
     return {"favorites": user_doc.get("favorites", {})}
-
-@api_router.post("/playlist")
-async def add_to_playlist(data: AddPlaylistRequest, current_user: dict = Depends(get_current_user)):
-    song = {"id": str(uuid.uuid4()), "title": data.title, "artist": data.artist, "cover": data.cover or ""}
-    await db.users.update_one({"supabase_uid": current_user["uid"]}, {"$push": {"playlist": song}})
-    return {"song": song}
-
-@api_router.delete("/playlist/{song_id}")
-async def remove_from_playlist(song_id: str, current_user: dict = Depends(get_current_user)):
-    await db.users.update_one({"supabase_uid": current_user["uid"]}, {"$pull": {"playlist": {"id": song_id}}})
-    return {"deleted": song_id}
-
-@api_router.post("/watching")
-async def add_watching(data: AddWatchingRequest, current_user: dict = Depends(get_current_user)):
-    if data.media_type not in ["anime", "shows"]:
-        raise HTTPException(status_code=400, detail="Invalid media type")
-    item = {"id": str(uuid.uuid4()), "title": data.title, "current_episode": data.current_episode, "status": data.status}
-    await db.users.update_one({"supabase_uid": current_user["uid"]}, {"$push": {f"watching.{data.media_type}": item}})
-    return {"item": item}
-
-@api_router.post("/quick-answer")
-async def save_quick_answer(data: QuickAnswerRequest, current_user: dict = Depends(get_current_user)):
-    await db.users.update_one({"supabase_uid": current_user["uid"]}, {"$set": {f"quick_answers.{data.key}": data.value}})
-    return {"saved": True}
 
 # === Horoscope ===
 
@@ -491,15 +520,7 @@ async def get_horoscope(current_user: dict = Depends(get_current_user)):
     prompt = TASK_PROMPTS["horoscope"].format(sign=user_sign.capitalize(), partner_sign=partner_sign.capitalize(), date=today)
     content = await generate_ai_text(prompt, f"horoscope-{current_user['uid']}-{today}", "You are BentlyAI, a warm relationship companion.")
     
-    horoscope = {
-        "user_id": current_user["uid"],
-        "date": today,
-        "sign": user_sign,
-        "partner_sign": partner_sign,
-        "sign_info": ZODIAC_SIGNS.get(user_sign, {}),
-        "partner_sign_info": ZODIAC_SIGNS.get(partner_sign, {}),
-        "content": content
-    }
+    horoscope = {"user_id": current_user["uid"], "date": today, "sign": user_sign, "partner_sign": partner_sign, "sign_info": ZODIAC_SIGNS.get(user_sign, {}), "content": content}
     await db.horoscopes.insert_one(horoscope)
     if "_id" in horoscope:
         del horoscope["_id"]
@@ -511,17 +532,11 @@ async def get_zodiac_signs():
 
 @api_router.post("/astrology/generate")
 async def generate_astrology(data: GenerateAstrologyRequest, current_user: dict = Depends(get_current_user)):
-    prompt = TASK_PROMPTS["astrology"].format(
-        birth_date=data.birth_date,
-        birth_time=data.birth_time or "Unknown",
-        birth_location=data.birth_location or "Unknown"
-    )
+    prompt = TASK_PROMPTS["astrology"].format(birth_date=data.birth_date, birth_time=data.birth_time or "Unknown", birth_location=data.birth_location or "Unknown")
     result = await generate_ai_text(prompt, f"astrology-{current_user['uid']}", "You are an astrologer. Always respond in valid JSON.")
     
-    # Try to parse JSON from response
     try:
         import json
-        # Find JSON in response
         start = result.find('{')
         end = result.rfind('}') + 1
         if start != -1 and end > start:
@@ -533,14 +548,7 @@ async def generate_astrology(data: GenerateAstrologyRequest, current_user: dict 
     
     await db.users.update_one(
         {"supabase_uid": current_user["uid"]},
-        {"$set": {
-            "astrology_profile": astro_data,
-            "birth_date": data.birth_date,
-            "birth_time": data.birth_time,
-            "birth_location": data.birth_location,
-            "zodiac_sign": astro_data.get("sun_sign", "").lower(),
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        }}
+        {"$set": {"astrology_profile": astro_data, "birth_date": data.birth_date, "birth_time": data.birth_time, "birth_location": data.birth_location, "zodiac_sign": astro_data.get("sun_sign", "").lower()}}
     )
     return {"astrology": astro_data}
 
@@ -548,13 +556,28 @@ async def generate_astrology(data: GenerateAstrologyRequest, current_user: dict 
 
 @api_router.get("/daily-question")
 async def get_daily_question(current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
     today = get_today_date()
-    existing = await db.daily_questions.find_one({"user_id": current_user["uid"], "date": today}, {"_id": 0})
+    
+    query = {"date": today}
+    if pair_id:
+        query["pair_id"] = pair_id
+    else:
+        query["pair_id"] = None
+        query["answers." + current_user["uid"]] = {"$exists": True}
+    
+    # Try to find existing question for pair
+    if pair_id:
+        existing = await db.daily_questions.find_one({"pair_id": pair_id, "date": today}, {"_id": 0})
+    else:
+        existing = await db.daily_questions.find_one({"pair_id": None, "date": today, f"answers.{current_user['uid']}": {"$exists": True}}, {"_id": 0})
+    
     if existing:
         return serialize_doc(existing)
     
     question_data = random.choice(DAILY_QUESTIONS)
-    new_question = DailyQuestion(user_id=current_user["uid"], question=question_data["question"], category=question_data["category"], date=today)
+    new_question = DailyQuestion(pair_id=pair_id, question=question_data["question"], category=question_data["category"], date=today)
     q_dict = new_question.model_dump()
     q_dict["created_at"] = q_dict["created_at"].isoformat()
     await db.daily_questions.insert_one(q_dict)
@@ -562,14 +585,21 @@ async def get_daily_question(current_user: dict = Depends(get_current_user)):
 
 @api_router.post("/daily-question/answer")
 async def answer_daily_question(data: AnswerQuestionRequest, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
     today = get_today_date()
-    await db.daily_questions.update_one({"user_id": current_user["uid"], "date": today}, {"$set": {"answer": data.answer}})
-    question = await db.daily_questions.find_one({"user_id": current_user["uid"], "date": today}, {"_id": 0})
+    
+    query = {"date": today}
+    if pair_id:
+        query["pair_id"] = pair_id
+    
+    await db.daily_questions.update_one(query, {"$set": {f"answers.{current_user['uid']}": data.answer}})
+    question = await db.daily_questions.find_one(query, {"_id": 0})
     return serialize_doc(question)
 
 @api_router.get("/sparks")
 async def get_sparks():
-    return {"sparks": SPARKS}
+    return {"sparks": random.sample(DEEPLY_PROMPTS if random.random() > 0.7 else DAILY_QUESTIONS, min(5, len(DAILY_QUESTIONS)))}
 
 # === Trust Building ===
 
@@ -620,22 +650,13 @@ async def generate_module_exercise(data: ModuleExerciseRequest, current_user: di
     if not module:
         raise HTTPException(status_code=404, detail="Module not found")
     
-    prompt = TASK_PROMPTS["module_exercise"].format(
-        module_title=module["title"],
-        module_description=module["description"],
-        day=data.day,
-        total_days=module["days"],
-        outcomes=", ".join(module["outcomes"])
-    )
+    prompt = TASK_PROMPTS["module_exercise"].format(module_title=module["title"], module_description=module["description"], day=data.day, total_days=module["days"], outcomes=", ".join(module["outcomes"]))
     exercise = await generate_ai_text(prompt, f"module-{current_user['uid']}-{data.module_id}-day{data.day}", "You are BentlyAI, a relationship coach.")
     return {"exercise": exercise, "module": module, "day": data.day}
 
 @api_router.post("/modules/{module_id}/complete-day/{day}")
 async def complete_module_day(module_id: str, day: int, current_user: dict = Depends(get_current_user)):
-    result = await db.module_progress.update_one(
-        {"user_id": current_user["uid"], "module_id": module_id},
-        {"$addToSet": {"completed_days": day}, "$set": {"current_day": day + 1}}
-    )
+    await db.module_progress.update_one({"user_id": current_user["uid"], "module_id": module_id}, {"$addToSet": {"completed_days": day}, "$set": {"current_day": day + 1}})
     progress = await db.module_progress.find_one({"user_id": current_user["uid"], "module_id": module_id}, {"_id": 0})
     return {"progress": serialize_doc(progress)}
 
@@ -651,7 +672,8 @@ async def get_calendar_events(month: Optional[str] = None, current_user: dict = 
 
 @api_router.post("/calendar/events")
 async def create_calendar_event(data: CreateEventRequest, current_user: dict = Depends(get_current_user)):
-    event = CalendarEvent(user_id=current_user["uid"], title=data.title, date=data.date, time=data.time, description=data.description, event_type=data.event_type)
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    event = CalendarEvent(user_id=current_user["uid"], pair_id=user_doc.get("active_pair_id"), title=data.title, date=data.date, time=data.time, description=data.description, event_type=data.event_type)
     e_dict = event.model_dump()
     e_dict["created_at"] = e_dict["created_at"].isoformat()
     await db.calendar_events.insert_one(e_dict)
@@ -662,7 +684,7 @@ async def delete_calendar_event(event_id: str, current_user: dict = Depends(get_
     await db.calendar_events.delete_one({"id": event_id, "user_id": current_user["uid"]})
     return {"deleted": event_id}
 
-# === Lists (Shopping/Wishlist) ===
+# === Lists ===
 
 @api_router.get("/lists/{list_type}")
 async def get_list_items(list_type: str, current_user: dict = Depends(get_current_user)):
@@ -675,7 +697,8 @@ async def get_list_items(list_type: str, current_user: dict = Depends(get_curren
 async def add_list_item(data: CreateListItemRequest, current_user: dict = Depends(get_current_user)):
     if data.list_type not in ["shopping", "wishlist"]:
         raise HTTPException(status_code=400, detail="Invalid list type")
-    item = ListItem(user_id=current_user["uid"], list_type=data.list_type, text=data.text)
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    item = ListItem(user_id=current_user["uid"], pair_id=user_doc.get("active_pair_id"), list_type=data.list_type, text=data.text)
     i_dict = item.model_dump()
     i_dict["created_at"] = i_dict["created_at"].isoformat()
     await db.list_items.insert_one(i_dict)
@@ -700,15 +723,14 @@ async def ai_suggest_list(list_type: str, context: str, current_user: dict = Dep
         prompt = TASK_PROMPTS["ingredients"].format(context=context)
     elif list_type == "wishlist":
         user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
-        partner_info = f"Favorites: {user_doc.get('favorites', {})}"
-        prompt = TASK_PROMPTS["gift_ideas"].format(context=context, partner_info=partner_info)
+        prompt = TASK_PROMPTS["gift_ideas"].format(context=context, partner_info=str(user_doc.get("favorites", {})))
     else:
         raise HTTPException(status_code=400, detail="Invalid list type")
     
     suggestions = await generate_ai_text(prompt, f"list-{current_user['uid']}-{list_type}", "You are BentlyAI, helpful and practical.")
     return {"suggestions": suggestions}
 
-# === Journal/Confessional ===
+# === Journal ===
 
 @api_router.get("/journal")
 async def get_journal_entries(limit: int = 20, current_user: dict = Depends(get_current_user)):
@@ -736,26 +758,34 @@ async def analyze_journal_entry(entry_id: str, current_user: dict = Depends(get_
     entry["analysis"] = analysis
     return {"entry": serialize_doc(entry)}
 
-# === Portraits ===
+# === Chat with Media ===
 
-@api_router.get("/portraits")
-async def get_portraits(current_user: dict = Depends(get_current_user)):
-    portraits = await db.portraits.find({"user_id": current_user["uid"]}, {"_id": 0}).sort("created_at", -1).limit(20).to_list(20)
-    return {"portraits": [serialize_doc(p) for p in portraits]}
+@api_router.get("/chat/messages")
+async def get_chat_messages(limit: int = 50, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
+    
+    query = {"pair_id": pair_id} if pair_id else {"sender_uid": current_user["uid"]}
+    messages = await db.chat_messages.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    return {"messages": [serialize_doc(m) for m in reversed(messages)]}
 
-@api_router.post("/portraits/generate")
-async def generate_portrait(data: GeneratePortraitRequest, current_user: dict = Depends(get_current_user)):
-    # For now, return a placeholder - image generation would need separate implementation
-    portrait = CouplePortrait(user_id=current_user["uid"], prompt=data.prompt)
-    p_dict = portrait.model_dump()
-    p_dict["created_at"] = p_dict["created_at"].isoformat()
-    p_dict["image_url"] = f"https://placehold.co/512x512/2d1b4e/ffffff?text=Portrait"  # Placeholder
-    await db.portraits.insert_one(p_dict)
-    if "_id" in p_dict:
-        del p_dict["_id"]
-    return {"portrait": p_dict, "note": "Image generation coming soon - placeholder used"}
-
-# === AI Chat ===
+@api_router.post("/chat/send")
+async def send_chat_message(data: SendMessageRequest, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
+    
+    msg = ChatMessage(
+        pair_id=pair_id,
+        sender_uid=current_user["uid"],
+        text=data.text,
+        message_type="media" if data.media_data else "user",
+        media_url=data.media_data,
+        media_type=data.media_type
+    )
+    m_dict = msg.model_dump()
+    m_dict["created_at"] = m_dict["created_at"].isoformat()
+    await db.chat_messages.insert_one(m_dict)
+    return {"message": serialize_doc(m_dict)}
 
 @api_router.post("/chat")
 async def ai_chat(data: ChatRequest, current_user: dict = Depends(get_current_user)):
@@ -768,15 +798,16 @@ async def ai_chat(data: ChatRequest, current_user: dict = Depends(get_current_us
         await db.sessions.insert_one(session_dict)
         session_doc = session_dict
     
-    vibe_instructions = {
-        "soft": "Be gentle, validating, and warm.",
-        "realtalk": "Be direct but caring. Call things out with love.",
-        "savage": "Be brutally honest. No sugarcoating.",
-    }
-    
-    system_prompt = f"""You are BentlyAI, a relationship coach and companion. You help couples communicate better, build trust, and grow together.
-Your style: {vibe_instructions.get(data.vibe or session_doc.get('vibe', 'realtalk'), vibe_instructions['realtalk'])}
-Keep responses concise (2-4 sentences). Focus on emotional truth. Ask questions that invite reflection. Never be preachy."""
+    # Different system prompts for CommonGround vs DeeplyUs
+    if data.mode == "deeplyus":
+        system_prompt = """You are BentlyAI in DeeplyUs mode - helping couples explore their intimate connection, desires, fantasies, and insecurities around sexuality and physical intimacy.
+Be open, non-judgmental, warm, and sex-positive. Help them communicate about desires, boundaries, kinks, and insecurities.
+Keep responses concise but thoughtful. Never shame. Always emphasize consent and communication."""
+    else:
+        vibe_instructions = {"soft": "Be gentle, validating, warm.", "realtalk": "Be direct but caring.", "savage": "Be brutally honest."}
+        system_prompt = f"""You are BentlyAI, a relationship coach. Help couples communicate better.
+Your style: {vibe_instructions.get(data.vibe or 'realtalk', vibe_instructions['realtalk'])}
+Keep responses concise (2-4 sentences). Focus on emotional truth. Never be preachy."""
     
     history = session_doc.get("history", [])[-10:]
     history_str = "\n".join([f"{m['role'].upper()}: {m['content']}" for m in history])
@@ -787,7 +818,7 @@ Keep responses concise (2-4 sentences). Focus on emotional truth. Ask questions 
     history.append({"role": "user", "content": data.message, "ts": datetime.now(timezone.utc).isoformat()})
     history.append({"role": "assistant", "content": reply, "ts": datetime.now(timezone.utc).isoformat()})
     
-    await db.sessions.update_one({"id": session_doc["id"]}, {"$set": {"history": history[-50:], "updated_at": datetime.now(timezone.utc).isoformat()}})
+    await db.sessions.update_one({"id": session_doc["id"]}, {"$set": {"history": history[-50:], "mode": data.mode, "vibe": data.vibe}})
     
     return {"reply": reply, "sessionId": session_doc["id"]}
 
@@ -798,14 +829,114 @@ async def ai_task(data: AITaskRequest, current_user: dict = Depends(get_current_
         raise HTTPException(status_code=400, detail=f"Unknown task: {data.task}")
     
     prompt = task_prompt.format(context=data.context, vibe=data.vibe or "direct but caring")
-    output = await generate_ai_text(prompt, f"task-{current_user['uid']}-{data.task}", "You are BentlyAI, a relationship coach.")
+    output = await generate_ai_text(prompt, f"task-{current_user['uid']}-{data.task}", "You are BentlyAI.")
     return {"ok": True, "task": data.task, "output": output}
 
-@api_router.post("/ai/ignite")
-async def ai_ignite(context: str = "", vibe: str = "realtalk", current_user: dict = Depends(get_current_user)):
+# === DeeplyUs Mode ===
+
+@api_router.get("/deeply/prompts")
+async def get_deeply_prompts(category: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    if not user_doc.get("deeply_unlocked"):
+        raise HTTPException(status_code=403, detail="DeeplyUs mode is locked")
+    
+    prompts = DEEPLY_PROMPTS
+    if category:
+        prompts = [p for p in prompts if p["category"] == category]
+    return {"prompts": prompts}
+
+@api_router.get("/deeply/exercises")
+async def get_deeply_exercises(current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    if not user_doc.get("deeply_unlocked"):
+        raise HTTPException(status_code=403, detail="DeeplyUs mode is locked")
+    return {"exercises": DEEPLY_EXERCISES}
+
+@api_router.post("/deeply/unlock")
+async def unlock_deeply(current_user: dict = Depends(get_current_user)):
+    await db.users.update_one({"supabase_uid": current_user["uid"]}, {"$set": {"deeply_unlocked": True}})
+    return {"unlocked": True}
+
+@api_router.post("/deeply/items")
+async def create_deeply_item(data: DeeplyItemRequest, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    if not user_doc.get("deeply_unlocked"):
+        raise HTTPException(status_code=403, detail="DeeplyUs mode is locked")
+    
+    item = DeeplyItem(pair_id=user_doc.get("active_pair_id"), user_id=current_user["uid"], item_type=data.item_type, text=data.text, shared_with_partner=data.shared_with_partner)
+    i_dict = item.model_dump()
+    i_dict["created_at"] = i_dict["created_at"].isoformat()
+    await db.deeply_items.insert_one(i_dict)
+    return {"item": serialize_doc(i_dict)}
+
+@api_router.get("/deeply/items")
+async def get_deeply_items(item_type: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    if not user_doc.get("deeply_unlocked"):
+        raise HTTPException(status_code=403, detail="DeeplyUs mode is locked")
+    
+    query = {"user_id": current_user["uid"]}
+    if item_type:
+        query["item_type"] = item_type
+    
+    items = await db.deeply_items.find(query, {"_id": 0}).sort("created_at", -1).to_list(50)
+    return {"items": [serialize_doc(i) for i in items]}
+
+@api_router.post("/deeply/ignite")
+async def deeply_ignite(context: str = "", vibe: str = "realtalk", current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    if not user_doc.get("deeply_unlocked"):
+        raise HTTPException(status_code=403, detail="DeeplyUs mode is locked")
+    
     prompt = TASK_PROMPTS["ignite"].format(context=context or "Looking for something fun and intimate", vibe=vibe)
-    suggestion = await generate_ai_text(prompt, f"ignite-{current_user['uid']}", "You are BentlyAI for intimate suggestions. Be tasteful but not clinical.")
+    suggestion = await generate_ai_text(prompt, f"ignite-{current_user['uid']}", "You are BentlyAI for intimate suggestions. Be tasteful, playful, and consensual.")
     return {"suggestion": suggestion}
+
+@api_router.post("/deeply/explore")
+async def deeply_explore(topic: str, context: str, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    if not user_doc.get("deeply_unlocked"):
+        raise HTTPException(status_code=403, detail="DeeplyUs mode is locked")
+    
+    if topic == "fantasy":
+        prompt = TASK_PROMPTS["deeply_fantasy"].format(context=context)
+    elif topic == "insecurity":
+        prompt = TASK_PROMPTS["deeply_insecurity"].format(context=context)
+    else:
+        prompt = TASK_PROMPTS["deeply_exploration"].format(context=context)
+    
+    response = await generate_ai_text(prompt, f"deeply-{current_user['uid']}-{topic}", "You are BentlyAI in intimate mode. Be open, warm, non-judgmental.")
+    return {"response": response}
+
+# === Portraits ===
+
+@api_router.get("/portraits")
+async def get_portraits(current_user: dict = Depends(get_current_user)):
+    portraits = await db.portraits.find({"user_id": current_user["uid"]}, {"_id": 0}).sort("created_at", -1).limit(20).to_list(20)
+    return {"portraits": [serialize_doc(p) for p in portraits]}
+
+@api_router.post("/portraits/generate")
+async def generate_portrait(data: GeneratePortraitRequest, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    
+    # Generate a descriptive prompt
+    enhanced_prompt = await generate_ai_text(
+        TASK_PROMPTS["portrait_prompt"].format(context=data.prompt, style=data.style),
+        f"portrait-prompt-{current_user['uid']}",
+        "You are an art director creating prompts for romantic couple portraits."
+    )
+    
+    # For now, create placeholder - real image gen would need separate API
+    portrait = CouplePortrait(pair_id=user_doc.get("active_pair_id"), user_id=current_user["uid"], prompt=data.prompt, style=data.style)
+    p_dict = portrait.model_dump()
+    p_dict["created_at"] = p_dict["created_at"].isoformat()
+    p_dict["enhanced_prompt"] = enhanced_prompt
+    p_dict["image_data"] = None  # Would be filled by image generation
+    await db.portraits.insert_one(p_dict)
+    if "_id" in p_dict:
+        del p_dict["_id"]
+    
+    return {"portrait": p_dict, "note": "Portrait prompt created. Image generation requires Imagen API."}
 
 # Include router
 app.include_router(api_router)
