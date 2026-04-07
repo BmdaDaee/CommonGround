@@ -157,4 +157,8 @@ export const api = {
 
   // Portrait sharing
   getShareablePortrait: (portraitId) => apiClient.get(`/portraits/${portraitId}/share`),
+
+  // Date Night Generator
+  generateDateNight: (mood, budget, location) => apiClient.post('/date-night/generate', { mood, budget, location }),
+  getDateNightHistory: () => apiClient.get('/date-night/history'),
 };

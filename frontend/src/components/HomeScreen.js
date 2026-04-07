@@ -344,6 +344,7 @@ export default function HomeScreen() {
           <QuickAction icon="📌" label="Timeline" description="Our milestones" onClick={() => setView('milestones')} mode={mode} />
           <QuickAction icon="🌙" label="Astrology" description="Cosmic blueprint" onClick={() => setView('astrology')} mode={mode} />
           <QuickAction icon="📊" label="Weekly Report" description="Relationship pulse" onClick={() => setView('weekly-report')} mode={mode} />
+          <QuickAction icon="🌃" label="Date Night" description="AI-planned dates" onClick={() => setView('date-night')} mode={mode} />
         </div>
       </div>
     </div>

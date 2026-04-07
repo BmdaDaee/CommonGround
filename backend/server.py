@@ -1467,6 +1467,102 @@ async def get_shareable_portrait(portrait_id: str, current_user: dict = Depends(
         raise HTTPException(status_code=404, detail="Portrait not found")
     return {"portrait": portrait}
 
+# === Date Night Generator ===
+
+class DateNightRequest(BaseModel):
+    mood: str = "romantic"  # romantic, adventurous, cozy, creative, surprise
+    budget: str = "medium"  # free, low, medium, high
+    location: str = "home"  # home, nearby, anywhere
+
+@api_router.post("/date-night/generate")
+async def generate_date_night(data: DateNightRequest, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    
+    # Gather personalization context
+    zodiac = user_doc.get("zodiac_sign", "unknown")
+    partner_zodiac = user_doc.get("partner_zodiac", "unknown")
+    
+    love_lang = user_doc.get("love_languages", {})
+    primary_ll = None
+    if love_lang:
+        primary_ll = max(love_lang.items(), key=lambda x: x[1])[0]
+    
+    # Get shared favorites
+    favorites = user_doc.get("favorites", {})
+    fav_music = favorites.get("music", [])[:3]
+    fav_movies = favorites.get("movies", [])[:3]
+    
+    # Get shared playlist
+    pair_id = user_doc.get("active_pair_id")
+    shared_songs = []
+    if pair_id:
+        cursor = db.shared_playlists.find({"pair_id": pair_id}, {"_id": 0, "title": 1, "artist": 1}).limit(5)
+        shared_songs = await cursor.to_list(length=5)
+    
+    context = f"""Couple profile:
+- Zodiac: {zodiac} + {partner_zodiac}
+- Primary love language: {LOVE_LANGUAGE_LABELS.get(primary_ll, 'unknown') if primary_ll else 'not set'}
+- Favorite music: {', '.join(fav_music) if fav_music else 'not set'}
+- Favorite movies: {', '.join(fav_movies) if fav_movies else 'not set'}
+- Shared playlist: {', '.join([f"{s['title']} by {s.get('artist','?')}" for s in shared_songs]) if shared_songs else 'none yet'}
+- Desired mood: {data.mood}
+- Budget: {data.budget}
+- Location preference: {data.location}"""
+
+    prompt = f"""Generate a personalized date night idea for this couple. {context}
+
+Return JSON with:
+- title (catchy 3-5 word name)
+- description (2-3 sentences describing the date)
+- steps (list of 4-6 specific steps to set up and enjoy the date)
+- playlist_suggestion (3 song recommendations that match the mood)
+- food_idea (1 specific food/drink to enjoy)
+- conversation_starter (1 question to ask during the date)
+- why_this_works (1 sentence explaining why this date matches their love languages/zodiac)
+- estimated_time (e.g. "2-3 hours")"""
+
+    result = await generate_ai_text(
+        prompt,
+        f"date-night-{current_user['uid']}",
+        "You are BentlyAI, a creative date planner. Always respond in valid JSON. Be specific, personal, and fun. No generic suggestions."
+    )
+    
+    try:
+        start = result.find('{')
+        end = result.rfind('}') + 1
+        if start != -1 and end > start:
+            date_idea = json.loads(result[start:end])
+        else:
+            date_idea = {"title": "Special Night In", "description": result}
+    except Exception:
+        date_idea = {"title": "Special Night In", "description": result}
+    
+    # Save to history
+    entry = {
+        "id": str(uuid.uuid4()),
+        "user_id": current_user["uid"],
+        "pair_id": pair_id,
+        "mood": data.mood,
+        "budget": data.budget,
+        "location": data.location,
+        "idea": date_idea,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.date_nights.insert_one(entry)
+    
+    return {"date_night": date_idea}
+
+@api_router.get("/date-night/history")
+async def get_date_night_history(current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
+    if not pair_id:
+        return {"history": []}
+    
+    cursor = db.date_nights.find({"pair_id": pair_id}, {"_id": 0}).sort("created_at", -1).limit(20)
+    history = await cursor.to_list(length=20)
+    return {"history": history}
+
 app.include_router(api_router)
 
 app.add_middleware(

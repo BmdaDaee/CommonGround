@@ -24,6 +24,7 @@ import SharedPlaylistScreen from './components/SharedPlaylistScreen';
 import MilestonesScreen from './components/MilestonesScreen';
 import AvatarScreen from './components/AvatarScreen';
 import WeeklyReportScreen from './components/WeeklyReportScreen';
+import DateNightScreen from './components/DateNightScreen';
 import UsScreen, { MeScreen } from './components/SubNav';
 import BottomNav from './components/BottomNav';
 import './App.css';
@@ -58,6 +59,7 @@ function MainApp() {
     if (view === 'love-language') return <LoveLanguageScreen />;
     if (view === 'partner-chat') return <PartnerChatScreen />;
     if (view === 'weekly-report') return <WeeklyReportScreen />;
+    if (view === 'date-night') return <DateNightScreen />;
 
     // Us tab
     if (['modules', 'trust', 'calendar', 'lists', 'portraits', 'astrology', 'playlist', 'milestones'].includes(view)) {
