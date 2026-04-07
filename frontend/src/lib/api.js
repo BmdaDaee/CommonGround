@@ -92,4 +92,23 @@ export const api = {
   aiChat: (message, mode, vibe) => apiClient.post('/chat', { message, mode, vibe }),
   aiTask: (task, context, vibe) => apiClient.post('/ai', { task, context, vibe }),
   aiIgnite: (context, vibe) => apiClient.post('/ai/ignite', null, { params: { context, vibe } }),
+
+  // Pairing
+  createPair: () => apiClient.post('/pairs/create'),
+  joinPair: (code) => apiClient.post('/pairs/join', { code }),
+  getMyPair: () => apiClient.get('/pairs/me'),
+  leavePair: () => apiClient.post('/pairs/leave'),
+
+  // DeeplyUs
+  getDeeplyPrompts: (category) => apiClient.get('/deeply/prompts', { params: { category } }),
+  getDeeplyExercises: () => apiClient.get('/deeply/exercises'),
+  unlockDeeply: () => apiClient.post('/deeply/unlock'),
+  createDeeplyItem: (itemType, text, sharedWithPartner) => apiClient.post('/deeply/items', { item_type: itemType, text, shared_with_partner: sharedWithPartner }),
+  getDeeplyItems: (itemType) => apiClient.get('/deeply/items', { params: { item_type: itemType } }),
+  deeplyIgnite: (context, vibe) => apiClient.post('/deeply/ignite', null, { params: { context, vibe } }),
+  deeplyExplore: (topic, context) => apiClient.post('/deeply/explore', null, { params: { topic, context } }),
+
+  // Chat messages (P2P)
+  getChatMessages: (limit) => apiClient.get('/chat/messages', { params: { limit } }),
+  sendChatMessage: (text, mediaData, mediaType) => apiClient.post('/chat/send', { text, media_data: mediaData, media_type: mediaType }),
 };

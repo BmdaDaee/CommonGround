@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { api } from '../lib/api';
 import theme, { getThemeColors } from '../lib/theme';
 
 export default function HomeScreen() {
-  const { mode } = useApp();
+  const { profile } = useAuth();
+  const { mode, setView } = useApp();
   const [dailyQuestion, setDailyQuestion] = useState(null);
   const [answer, setAnswer] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -69,7 +71,7 @@ export default function HomeScreen() {
             color: t.text.primary,
             marginBottom: theme.spacing[1],
           }}>
-            CommonGround
+            {profile?.display_name ? `Hey, ${profile.display_name}` : 'CommonGround'}
           </h1>
           <p style={{
             fontSize: theme.typography.size.sm,
@@ -209,28 +211,28 @@ export default function HomeScreen() {
             icon="✨" 
             label="Horoscope" 
             description="Your daily stars"
-            onClick={() => {}}
+            onClick={() => setView('horoscope')}
             mode={mode}
           />
           <QuickAction 
             icon="💜" 
             label="Trust" 
             description="Build together"
-            onClick={() => {}}
+            onClick={() => setView('trust')}
             mode={mode}
           />
           <QuickAction 
             icon="🎵" 
             label="Favorites" 
             description="Share what you love"
-            onClick={() => {}}
+            onClick={() => setView('favorites')}
             mode={mode}
           />
           <QuickAction 
             icon="💬" 
             label="Chat" 
             description="Talk to BentlyAI"
-            onClick={() => {}}
+            onClick={() => setView('chat')}
             mode={mode}
           />
         </div>

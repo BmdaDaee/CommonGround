@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { key: 'chat', label: 'Chat', icon: '💬' },
   { key: 'us', label: 'Us', icon: '💜' },
   { key: 'me', label: 'Me', icon: '👤' },
+  { key: 'deeply', label: 'DeeplyUs', icon: '🔒' },
 ];
 
 export default function BottomNav() {
@@ -18,7 +19,8 @@ export default function BottomNav() {
     if (['home', 'horoscope'].includes(view)) return 'home';
     if (['chat', 'tools'].includes(view)) return 'chat';
     if (['modules', 'trust', 'calendar', 'lists', 'portraits'].includes(view)) return 'us';
-    if (['favorites', 'journal', 'profile'].includes(view)) return 'me';
+    if (['favorites', 'journal', 'profile', 'horoscope'].includes(view)) return 'me';
+    if (view === 'deeply') return 'deeply';
     return view;
   };
 

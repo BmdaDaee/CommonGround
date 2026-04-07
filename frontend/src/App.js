@@ -2,6 +2,8 @@ import React from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider, useApp } from './context/AppContext';
 import AuthScreen from './components/AuthScreen';
+import OnboardingScreen from './components/OnboardingScreen';
+import PairingScreen from './components/PairingScreen';
 import HomeScreen from './components/HomeScreen';
 import HoroscopeScreen from './components/HoroscopeScreen';
 import ChatScreen from './components/ChatScreen';
@@ -12,6 +14,7 @@ import CalendarScreen from './components/CalendarScreen';
 import ListsScreen from './components/ListsScreen';
 import JournalScreen from './components/JournalScreen';
 import ModulesScreen from './components/ModulesScreen';
+import DeeplyUsScreen from './components/DeeplyUsScreen';
 import UsScreen, { MeScreen } from './components/SubNav';
 import BottomNav from './components/BottomNav';
 import './App.css';
@@ -37,7 +40,7 @@ function LoadingScreen() {
 }
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, profile, pair, loading } = useAuth();
   const { view, setView } = useApp();
 
   if (loading) {
@@ -48,24 +51,29 @@ function AppContent() {
     return <AuthScreen />;
   }
 
-  // Render based on current view
+  // Onboarding: user logged in but hasn't completed profile setup
+  if (!profile?.onboarding_complete) {
+    return <OnboardingScreen />;
+  }
+
+  // Pairing: user onboarded but not paired yet
+  if (!pair) {
+    return <PairingScreen />;
+  }
+
+  // Main app — user is logged in, onboarded, and paired
   const renderContent = () => {
-    // Today/Home tab
     if (view === 'home') return <HomeScreen />;
-    if (view === 'horoscope') return <HoroscopeScreen />;
-    
-    // Chat tab
     if (view === 'chat') return <ChatScreen />;
     if (view === 'tools') return <ToolsScreen />;
-    
-    // Us tab (with sub-navigation)
+    if (view === 'deeply') return <DeeplyUsScreen />;
+
+    // Us tab
     if (['us', 'modules', 'trust', 'calendar', 'lists', 'portraits'].includes(view)) {
-      // Default to modules if just "us"
       if (view === 'us') {
         setView('modules');
         return null;
       }
-      
       return (
         <UsScreen>
           {view === 'modules' && <ModulesScreen />}
@@ -75,24 +83,22 @@ function AppContent() {
         </UsScreen>
       );
     }
-    
-    // Me tab (with sub-navigation)
-    if (['me', 'favorites', 'journal', 'profile'].includes(view)) {
-      // Default to favorites if just "me"
+
+    // Me tab
+    if (['me', 'favorites', 'journal', 'profile', 'horoscope'].includes(view)) {
       if (view === 'me') {
         setView('favorites');
         return null;
       }
-      
       return (
         <MeScreen>
           {view === 'favorites' && <FavoritesScreen />}
           {view === 'journal' && <JournalScreen />}
+          {view === 'horoscope' && <HoroscopeScreen />}
         </MeScreen>
       );
     }
-    
-    // Fallback
+
     return <HomeScreen />;
   };
 
