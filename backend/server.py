@@ -162,6 +162,7 @@ class UserProfile(BaseModel):
     astrology_profile: Optional[Dict[str, Any]] = None
     active_pair_id: Optional[str] = None
     deeply_unlocked: bool = False
+    basic_setup_complete: bool = False
     onboarding_complete: bool = False
     love_languages: Optional[Dict[str, int]] = None
     push_subscription: Optional[Dict[str, Any]] = None
@@ -288,6 +289,7 @@ class UpdateProfileRequest(BaseModel):
     birth_time: Optional[str] = None
     birth_location: Optional[str] = None
     deeply_unlocked: Optional[bool] = None
+    basic_setup_complete: Optional[bool] = None
     onboarding_complete: Optional[bool] = None
 
 class UpdateFavoritesRequest(BaseModel):
@@ -456,6 +458,11 @@ async def create_session(current_user: dict = Depends(get_current_user)):
         await db.users.insert_one(user_dict)
         user_doc = user_dict
     
+    # Migration: existing onboarded users get basic_setup_complete auto-set
+    if user_doc.get("onboarding_complete") and not user_doc.get("basic_setup_complete"):
+        await db.users.update_one({"supabase_uid": current_user["uid"]}, {"$set": {"basic_setup_complete": True}})
+        user_doc["basic_setup_complete"] = True
+    
     # Get pair info if exists
     pair = None
     if user_doc.get("active_pair_id"):
@@ -473,7 +480,7 @@ async def get_profile(current_user: dict = Depends(get_current_user)):
 @api_router.put("/profile")
 async def update_profile(data: UpdateProfileRequest, current_user: dict = Depends(get_current_user)):
     update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
-    for field in ["display_name", "gender", "partner_gender", "ethnicity", "zodiac_sign", "partner_zodiac", "appearance", "birth_date", "birth_time", "birth_location", "deeply_unlocked", "onboarding_complete"]:
+    for field in ["display_name", "gender", "partner_gender", "ethnicity", "zodiac_sign", "partner_zodiac", "appearance", "birth_date", "birth_time", "birth_location", "deeply_unlocked", "basic_setup_complete", "onboarding_complete"]:
         val = getattr(data, field, None)
         if val is not None:
             update_data[field] = val.lower() if field in ["zodiac_sign", "partner_zodiac"] and isinstance(val, str) else val

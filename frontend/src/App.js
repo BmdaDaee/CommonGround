@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider, useApp } from './context/AppContext';
 import AuthScreen from './components/AuthScreen';
+import BasicSetupScreen from './components/BasicSetupScreen';
 import OnboardingScreen from './components/OnboardingScreen';
 import PairingScreen from './components/PairingScreen';
 import HomeScreen from './components/HomeScreen';
@@ -33,11 +34,13 @@ function LoadingScreen() {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: '#FFF4EC', fontFamily: "'Source Sans 3', sans-serif",
+      background: '#050505', fontFamily: "'Unbounded', sans-serif",
     }}>
       <div style={{ textAlign: 'center' }}>
-        <h1 style={{ fontSize: '32px', fontWeight: 700, color: '#1A1A1A', marginBottom: '8px' }}>CommonGround</h1>
-        <p style={{ color: '#7A7A7A' }}>Powered by BentlyAI</p>
+        <h1 style={{ fontSize: '32px', fontWeight: 900, color: '#FFF', marginBottom: '8px', letterSpacing: '-0.02em' }}>
+          Common<span style={{ color: '#D4AF37' }}>Ground</span>
+        </h1>
+        <p style={{ color: '#555555', fontFamily: "'Manrope', sans-serif" }}>Powered by BentlyAI</p>
       </div>
     </div>
   );
@@ -106,8 +109,9 @@ function AppContent() {
   const { user, profile, pair, loading } = useAuth();
   if (loading) return <LoadingScreen />;
   if (!user) return <AuthScreen />;
-  if (!profile?.onboarding_complete) return <OnboardingScreen />;
+  if (!profile?.basic_setup_complete) return <BasicSetupScreen />;
   if (!pair) return <PairingScreen />;
+  if (!profile?.onboarding_complete) return <OnboardingScreen />;
   return <MainApp />;
 }
 
