@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider, useApp } from './context/AppContext';
 import AuthScreen from './components/AuthScreen';
@@ -62,6 +62,12 @@ function AppContent() {
   }
 
   // Main app — user is logged in, onboarded, and paired
+  // Redirect 'us' and 'me' to their default sub-views
+  useEffect(() => {
+    if (view === 'us') setView('modules');
+    if (view === 'me') setView('favorites');
+  }, [view, setView]);
+
   const renderContent = () => {
     if (view === 'home') return <HomeScreen />;
     if (view === 'chat') return <ChatScreen />;
@@ -69,11 +75,7 @@ function AppContent() {
     if (view === 'deeply') return <DeeplyUsScreen />;
 
     // Us tab
-    if (['us', 'modules', 'trust', 'calendar', 'lists', 'portraits'].includes(view)) {
-      if (view === 'us') {
-        setView('modules');
-        return null;
-      }
+    if (['modules', 'trust', 'calendar', 'lists', 'portraits'].includes(view)) {
       return (
         <UsScreen>
           {view === 'modules' && <ModulesScreen />}
@@ -85,11 +87,7 @@ function AppContent() {
     }
 
     // Me tab
-    if (['me', 'favorites', 'journal', 'profile', 'horoscope'].includes(view)) {
-      if (view === 'me') {
-        setView('favorites');
-        return null;
-      }
+    if (['favorites', 'journal', 'profile', 'horoscope'].includes(view)) {
       return (
         <MeScreen>
           {view === 'favorites' && <FavoritesScreen />}
