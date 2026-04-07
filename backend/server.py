@@ -24,6 +24,7 @@ db = client[os.environ['DB_NAME']]
 # Supabase config
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY')
+SUPABASE_SECRET_KEY = os.environ.get('SUPABASE_SECRET_KEY')
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
 
 # Create the main app
@@ -109,12 +110,15 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing authentication")
     
     try:
+        # Use secret key for backend verification if available
+        api_key = SUPABASE_SECRET_KEY or SUPABASE_ANON_KEY
+        
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{SUPABASE_URL}/auth/v1/user",
                 headers={
                     "Authorization": f"Bearer {credentials.credentials}",
-                    "apikey": SUPABASE_ANON_KEY,
+                    "apikey": api_key,
                 },
             )
             
@@ -122,6 +126,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
                 user_data = response.json()
                 return {"uid": user_data["id"], "email": user_data.get("email", ""), "token": credentials.credentials}
             else:
+                logger.error(f"Auth verification failed: {response.status_code} - {response.text}")
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     except httpx.RequestError as e:
         logger.error(f"Auth request error: {e}")
