@@ -1,87 +1,87 @@
 {
-  "theme": "light",
-  "archetype": "1_organic_earthy",
+  "project_name": "CommonGround",
+  "app_type": "hybrid_fullstack",
+  "theme": "dark",
+  "archetype": "7 (Electric & Neon - Urban Streetwear / Anime Hybrid)",
+  "vibe": "Anime Vibes with HipHop Urban flows",
+  "colors": {
+    "background": "#050505",
+    "surface": "#121212",
+    "surface_glass": "rgba(0, 0, 0, 0.6)",
+    "primary": "#FF3333",
+    "secondary": "#FFE600",
+    "text_primary": "#FFFFFF",
+    "text_secondary": "#8A8A93",
+    "border": "#222222",
+    "deeplyus_bg": "#1A0000",
+    "deeplyus_accent": "#8B0000",
+    "hover_state_multiplier": "lighten 15%"
+  },
   "typography": {
-    "fonts": {
-      "heading": "Manrope",
-      "body": "Work Sans",
-      "monospace": "JetBrains Mono"
-    },
+    "headings_font": "Unbounded",
+    "body_font": "Manrope",
+    "heading_style": "uppercase tracking-tighter font-black",
+    "body_style": "tracking-normal leading-relaxed font-medium text-base",
     "hierarchy": {
-      "h1": "text-4xl tracking-tight font-light text-stone-900",
-      "h2": "text-2xl tracking-tight font-medium text-stone-800",
-      "h3": "text-xl tracking-tight font-medium text-stone-800",
-      "body": "text-base leading-relaxed text-stone-600",
-      "label": "text-xs tracking-[0.2em] uppercase font-bold text-stone-500"
+      "h1": "text-5xl sm:text-6xl",
+      "h2": "text-3xl sm:text-4xl",
+      "h3": "text-xl sm:text-2xl",
+      "body": "text-base",
+      "label": "text-xs tracking-[0.2em] uppercase"
     }
   },
-  "colors": {
-    "background": "bg-stone-50",
-    "surface": "bg-white",
-    "text_primary": "text-stone-900",
-    "text_secondary": "text-stone-500",
-    "primary": "bg-[#9A3B26]",
-    "primary_hover": "hover:bg-[#7A2F1E] hover:text-white",
-    "secondary": "bg-stone-200",
-    "secondary_hover": "hover:bg-stone-300",
-    "accent_sage": "bg-[#849B89]",
-    "accent_sand": "bg-[#E8E0D5]",
-    "border": "border-stone-200"
+  "layout": {
+    "grid_system": "Bento 'Tetris' Grid (Mode A) with asymmetric spans",
+    "spacing_scale": "p-6, p-8, p-12 (Generous spacing)",
+    "corners": "rounded-none for brutalist cards, rounded-full for pills/buttons",
+    "borders": "1px solid border-border with intense shadow offsets on hover"
   },
   "components": {
-    "button": {
-      "primary": "inline-flex items-center justify-center rounded-full bg-[#9A3B26] px-8 py-4 text-sm font-medium text-stone-50 transition-transform active:scale-95 hover:bg-[#7A2F1E] hover:text-white",
-      "secondary": "inline-flex items-center justify-center rounded-full bg-stone-100 px-8 py-4 text-sm font-medium text-stone-900 transition-colors hover:bg-stone-200 hover:text-stone-900"
+    "buttons": "Solid primary color, black text, brutalist hover effect (-translate-y-1, brutalist box shadow), never generic pill.",
+    "cards": "Glassmorphism 2.0 (backdrop-blur-xl, bg-black/60, 1px bright border-white/10). No muddy grey backgrounds.",
+    "forms": "Shadcn based, high contrast. Focus states must have neon glows (focus:ring-primary).",
+    "navigation": "Bottom navigation with Phosphor icons. Active state is an electric yellow underline/glow.",
+    "header": "Crystal Glass sticky header (backdrop-blur-xl bg-black/60 border-b border-white/10)"
+  },
+  "visual_effects": {
+    "textures": "Heavy noise/grain overlay globally on dark sections.",
+    "decorations": "Massive kinetic marquee text in backgrounds (outline text, text-8xl+, react-fast-marquee).",
+    "animations": "Framer motion staggered entrances, hover scale-up on bento grid items, parallax scrolling with Lenis.",
+    "glassmorphism": "backdrop-blur-xl bg-white/5 for dark mode containers with 1px border-white/10."
+  },
+  "media": [
+    {
+      "category": "hero_background",
+      "url": "https://images.pexels.com/photos/17195067/pexels-photo-17195067.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Vibrant urban alley illuminated by neon signs"
     },
-    "card": "bg-white rounded-[2rem] border border-stone-100 shadow-sm p-6",
-    "input": "w-full rounded-2xl border-none bg-stone-100 px-6 py-4 text-base focus:ring-2 focus:ring-[#9A3B26] focus:bg-white transition-all",
-    "insight_card": "bg-[#FDF8F5] rounded-2xl border border-[#F3E6DF] p-5 shadow-sm relative overflow-hidden",
-    "chat_bubble_ai": "bg-white rounded-2xl rounded-tl-sm border border-stone-100 p-4 shadow-sm text-stone-800 text-sm",
-    "chat_bubble_user": "bg-[#9A3B26] rounded-2xl rounded-tr-sm p-4 text-white text-sm",
-    "dial_selector": "flex items-center p-1 bg-stone-100/80 backdrop-blur-md rounded-full border border-stone-200/50 shadow-inner"
-  },
-  "layout": {
-    "spacing": {
-      "section": "py-12 px-6",
-      "container": "max-w-md mx-auto h-[100dvh] relative bg-stone-50 overflow-hidden flex flex-col shadow-2xl",
-      "gap_large": "gap-8",
-      "gap_small": "gap-4"
+    {
+      "category": "couple_portraits",
+      "url": "https://images.unsplash.com/photo-1683664794354-31b59f51e10c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwxfHxjb3VwbGUlMjBzdHJlZXR3ZWFyJTIwZmFzaGlvbnxlbnwwfHx8fDE3NzU1NjUyNDd8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Diverse couple in trendy streetwear"
     },
-    "bento_grid": "grid grid-cols-2 gap-4"
-  },
-  "media": {
-    "image_urls": [
-      {
-        "url": "https://images.unsplash.com/photo-1760442903566-99f3eae250ad?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMHdhcm0lMjBvcmdhbmljJTIwdGV4dHVyZSUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzc1NTM4OTg4fDA&ixlib=rb-4.1.0&q=85",
-        "category": "background",
-        "description": "Abstract warm organic texture for Auth/Onboarding background screens"
-      },
-      {
-        "url": "https://images.unsplash.com/photo-1545396047-67fb8c80f6e5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwyfHxjb3VwbGUlMjBob2xkaW5nJTIwaGFuZHMlMjBjbG9zZSUyMHVwJTIwd2FybSUyMGxpZ2h0aW5nfGVufDB8fHx8MTc3NTUzODk4OHww&ixlib=rb-4.1.0&q=85",
-        "category": "hero",
-        "description": "Couple holding hands close up warm lighting for Welcome/Pairing screen"
-      }
-    ]
-  },
-  "icons": {
-    "library": "lucide-react",
-    "usage": "Use stroke-width 1.5 for a delicate, organic feel"
-  },
-  "animations": {
-    "hover": "transition-all duration-300 ease-out",
-    "entrance": "animate-in fade-in slide-in-from-bottom-4 duration-500",
-    "chat_message": "animate-in fade-in slide-in-from-bottom-2 duration-300",
-    "pulse_soft": "animate-pulse duration-2000"
+    {
+      "category": "bently_ai_avatar",
+      "url": "https://images.unsplash.com/photo-1633957897986-70e83293f3ff?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwxfHxyb2JvdCUyMGZ1dHVyaXN0aWMlMjBhdmF0YXJ8ZW58MHx8fHwxNzc1NTY1MjQ3fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Mecha-inspired robotic avatar"
+    },
+    {
+      "category": "deeply_us_background",
+      "url": "https://images.unsplash.com/photo-1761078739411-2ccb6e956c16?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzB8MHwxfHNlYXJjaHwxfHxkYXJrJTIwcmVkJTIwdmVsdmV0JTIwYWJzdHJhY3R8ZW58MHx8fHwxNzc1NTY1MjQ3fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Dark cinematic infrared lighting with velvet red abstract patterns"
+    }
+  ],
+  "accessibility_and_testing": {
+    "contrast": "APCA contrast calculator used. Text shadow required over complex images.",
+    "testing_attributes": "All interactive elements MUST include 'data-testid' in kebab-case format."
   },
   "instructions_to_main_agent": [
-    "Build a mobile-first UI using a max-width container (max-w-md mx-auto h-[100dvh]) to simulate a mobile app on desktop.",
-    "Use 'Manrope' for headings and 'Work Sans' for body text. Do not use Inter for headings.",
-    "Implement the Chat Interface using dynamic blocks rather than just text bubbles. The tools (Draft Reply, Break It Down) should be horizontal scrollable pills or a bento grid above the keyboard area.",
-    "For the Vibe Selector, create a tactile dial or a sleek segmented control at the top of the chat.",
-    "Mode Toggle (CommonGround / DeeplyUs): Use a smooth animated toggle that shifts the color palette slightly (e.g., from Sage to Terracotta accents).",
-    "Ensure all interactive elements have data-testid attributes (e.g., data-testid='chat-submit-button').",
-    "Use the provided image URLs for the auth background and pairing screen.",
-    "Avoid standard Shadcn cards for everything; use flat, rectangular, or heavily rounded (rounded-[2rem]) organic shapes with generous padding (p-6 or p-8).",
-    "Do NOT use teal or purple for CTAs. Stick to the Primary #9A3B26 (Terracotta) for primary actions."
+    "Run: yarn add @phosphor-icons/react react-fast-marquee framer-motion",
+    "Use pure HTML + Tailwind for structural/hero layouts, Shadcn for interactive logic.",
+    "Embrace asymmetry. The UI should feel like a high-end streetwear magazine drop, mixing raw brutalist components with refined glassmorphism.",
+    "Implement 'DeeplyUs' mode by overriding the theme colors completely (shift from dark/neon to deep crimson/infrared).",
+    "Include 'data-testid' attributes extensively on all interactable elements and major content blocks.",
+    "DO NOT center everything. Use strong left alignment and tension in layouts.",
+    "Images MUST not exceed 80vh on mobile."
   ]
 }
