@@ -1,53 +1,69 @@
-import { useEffect } from "react";
-import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import React from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { AppProvider, useApp } from './context/AppContext';
+import AuthScreen from './components/AuthScreen';
+import PairingScreen from './components/PairingScreen';
+import ChatScreen from './components/ChatScreen';
+import ToolsScreen from './components/ToolsScreen';
+import BottomNav from './components/BottomNav';
+import './App.css';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
-
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
+function LoadingScreen() {
   return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: '#FFF4EC',
+      fontFamily: "'Source Sans 3', sans-serif",
+    }}>
+      <div style={{ textAlign: 'center' }}>
+        <h1 style={{ fontSize: '32px', fontWeight: 700, color: '#1A1A1A', marginBottom: '8px' }}>
+          CommonGround
+        </h1>
+        <p style={{ color: '#7A7A7A' }}>Loading...</p>
+      </div>
     </div>
   );
-};
+}
+
+function AppContent() {
+  const { user, loading, pair } = useAuth();
+  const { view } = useApp();
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  // Not authenticated
+  if (!user) {
+    return <AuthScreen />;
+  }
+
+  // Authenticated but not paired - show pairing screen
+  // Skip pairing for now to allow solo AI chat
+  // if (!pair || pair.status !== 'ACTIVE') {
+  //   return <PairingScreen />;
+  // }
+
+  // Main app with navigation
+  return (
+    <div style={{ paddingBottom: '80px' }}>
+      {view === 'chat' && <ChatScreen />}
+      {view === 'tools' && <ToolsScreen />}
+      <BottomNav />
+    </div>
+  );
+}
 
 function App() {
   return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </div>
+    <AuthProvider>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </AuthProvider>
   );
 }
 
