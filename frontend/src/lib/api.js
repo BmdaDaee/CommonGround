@@ -8,7 +8,6 @@ const apiClient = axios.create({
   timeout: 30000,
 });
 
-// Add auth token to requests
 apiClient.interceptors.request.use(
   async (config) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -20,15 +19,12 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Handle 401 errors
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        window.location.href = '/';
-      }
+      if (!session) window.location.href = '/';
     }
     return Promise.reject(error);
   }
@@ -36,27 +32,64 @@ apiClient.interceptors.response.use(
 
 export default apiClient;
 
-// API functions
 export const api = {
-  // Auth
+  // Auth & Profile
   ensureSession: () => apiClient.post('/auth/session'),
   getProfile: () => apiClient.get('/profile'),
   updateProfile: (data) => apiClient.put('/profile', data),
   
-  // Pairs
-  createPair: () => apiClient.post('/pairs'),
-  joinPair: (code) => apiClient.post('/pairs/join', { code }),
-  getMyPair: () => apiClient.get('/pairs/me'),
-  leavePair: () => apiClient.post('/pairs/leave'),
+  // Favorites & Media
+  getFavorites: () => apiClient.get('/favorites'),
+  updateFavorites: (category, items) => apiClient.put('/favorites', { category, items }),
+  addToPlaylist: (title, artist, cover) => apiClient.post('/playlist', { title, artist, cover }),
+  removeFromPlaylist: (songId) => apiClient.delete(`/playlist/${songId}`),
+  addWatching: (mediaType, title, currentEpisode, status) => apiClient.post('/watching', { media_type: mediaType, title, current_episode: currentEpisode, status }),
+  saveQuickAnswer: (key, value) => apiClient.post('/quick-answer', { key, value }),
   
-  // Chat (pair)
-  sendMessage: (pairId, text, messageId) => apiClient.post(`/chat/${pairId}/send`, { text, message_id: messageId }),
-  listMessages: (pairId, limit = 50) => apiClient.get(`/chat/${pairId}/list`, { params: { limit } }),
+  // Horoscope & Astrology
+  getHoroscope: () => apiClient.get('/horoscope'),
+  getZodiacSigns: () => apiClient.get('/zodiac-signs'),
+  generateAstrology: (birthDate, birthTime, birthLocation) => apiClient.post('/astrology/generate', { birth_date: birthDate, birth_time: birthTime, birth_location: birthLocation }),
   
-  // AI Chat
+  // Daily Question & Sparks
+  getDailyQuestion: () => apiClient.get('/daily-question'),
+  answerDailyQuestion: (answer) => apiClient.post('/daily-question/answer', { answer }),
+  getSparks: () => apiClient.get('/sparks'),
+  
+  // Trust Building
+  getTrustExercises: () => apiClient.get('/trust-exercises'),
+  getTrustAdvice: (exerciseId, context, vibe) => apiClient.post(`/trust-advice?exercise_id=${exerciseId}&context=${encodeURIComponent(context || '')}&vibe=${vibe || 'realtalk'}`),
+  
+  // Growth Modules
+  getModules: () => apiClient.get('/modules'),
+  getModuleProgress: () => apiClient.get('/modules/progress'),
+  startModule: (moduleId) => apiClient.post(`/modules/${moduleId}/start`),
+  generateExercise: (moduleId, day) => apiClient.post('/modules/exercise', { module_id: moduleId, day }),
+  completeDay: (moduleId, day) => apiClient.post(`/modules/${moduleId}/complete-day/${day}`),
+  
+  // Calendar
+  getCalendarEvents: (month) => apiClient.get('/calendar/events', { params: { month } }),
+  createCalendarEvent: (title, date, time, description, eventType) => apiClient.post('/calendar/events', { title, date, time, description, event_type: eventType }),
+  deleteCalendarEvent: (eventId) => apiClient.delete(`/calendar/events/${eventId}`),
+  
+  // Lists
+  getListItems: (listType) => apiClient.get(`/lists/${listType}`),
+  addListItem: (listType, text) => apiClient.post('/lists', { list_type: listType, text }),
+  toggleListItem: (itemId) => apiClient.put(`/lists/${itemId}/toggle`),
+  deleteListItem: (itemId) => apiClient.delete(`/lists/${itemId}`),
+  aiSuggestList: (listType, context) => apiClient.post(`/lists/ai-suggest/${listType}`, null, { params: { context } }),
+  
+  // Journal/Confessional
+  getJournalEntries: (limit) => apiClient.get('/journal', { params: { limit } }),
+  createJournalEntry: (text) => apiClient.post('/journal', { text }),
+  analyzeJournalEntry: (entryId) => apiClient.post(`/journal/${entryId}/analyze`),
+  
+  // Portraits
+  getPortraits: () => apiClient.get('/portraits'),
+  generatePortrait: (prompt, style) => apiClient.post('/portraits/generate', { prompt, style }),
+  
+  // AI Chat & Tasks
   aiChat: (message, mode, vibe) => apiClient.post('/chat', { message, mode, vibe }),
   aiTask: (task, context, vibe) => apiClient.post('/ai', { task, context, vibe }),
-  
-  // Session
-  getSession: (sessionId) => apiClient.get(`/session/${sessionId}`),
+  aiIgnite: (context, vibe) => apiClient.post('/ai/ignite', null, { params: { context, vibe } }),
 };

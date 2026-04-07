@@ -109,7 +109,7 @@ export default function ToolsScreen() {
             color: t.text.secondary,
             marginBottom: theme.spacing[4],
           }}>
-            Prototype features powered by Shantell's voice. Paste text, pick a tool, get something usable.
+            Relationship tools powered by BentlyAI. Paste text, pick a tool, get something real.
           </p>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing[3] }}>

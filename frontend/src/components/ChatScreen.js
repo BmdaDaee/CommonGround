@@ -207,7 +207,7 @@ export default function ChatScreen() {
     // Add system welcome message
     setMessages([{
       id: 'system-welcome',
-      text: "Shantell: Keep it cute, keep it honest. You're both here now.",
+      text: "BentlyAI: Hey you two. I'm here when you need me. Keep it real.",
       message_type: 'system',
     }]);
   }, []);

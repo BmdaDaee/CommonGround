@@ -5,7 +5,7 @@ const AppContext = createContext(null);
 export function AppProvider({ children }) {
   const [mode, setMode] = useState('commonground'); // commonground | deeplyus
   const [vibe, setVibe] = useState('realtalk'); // soft | realtalk | savage
-  const [view, setView] = useState('chat'); // chat | tools
+  const [view, setView] = useState('home'); // home | horoscope | chat | tools | trust | favorites
 
   const value = useMemo(() => ({
     mode,
