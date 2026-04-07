@@ -26,9 +26,9 @@ function SubNavBar({ tabs }) {
             style={{
               padding: `${theme.spacing[1]} ${theme.spacing[3]}`,
               borderRadius: theme.radius.none,
-              border: isActive ? '1px solid #FF3333' : '1px solid #333',
-              background: isActive ? 'rgba(255,51,51,0.12)' : 'transparent',
-              color: isActive ? '#FF3333' : '#8A8A93',
+              border: isActive ? '1px solid #D4AF37' : '1px solid #1F1F1F',
+              background: isActive ? 'rgba(212,175,55,0.1)' : 'transparent',
+              color: isActive ? '#D4AF37' : '#9CA3AF',
               fontSize: theme.typography.size.xs,
               fontWeight: 700,
               fontFamily: theme.typography.fontFamily.heading,

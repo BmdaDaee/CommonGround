@@ -23,20 +23,20 @@ html, body, #root {
 }
 
 ::selection {
-  background: #FF3333;
+  background: #D4AF37;
   color: #000;
 }
 
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: #050505; }
 ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: #FF3333; }
+::-webkit-scrollbar-thumb:hover { background: #D4AF37; }
 
 input, textarea, select, button {
   font-family: 'Manrope', sans-serif;
 }
 
-a { color: #FF3333; text-decoration: none; }
+a { color: #D4AF37; text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 /* Utility animations */
@@ -46,8 +46,13 @@ a:hover { text-decoration: underline; }
 }
 
 @keyframes glow {
-  0%, 100% { box-shadow: 0 0 8px rgba(255,51,51,0.3); }
-  50% { box-shadow: 0 0 24px rgba(255,51,51,0.6); }
+  0%, 100% { box-shadow: 0 0 8px rgba(212,175,55,0.3); }
+  50% { box-shadow: 0 0 24px rgba(157,78,221,0.5); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
 }
 
 @keyframes marqueeScroll {
@@ -57,3 +62,10 @@ a:hover { text-decoration: underline; }
 
 .animate-fade-in { animation: fadeInUp 0.4s ease-out forwards; }
 .animate-glow { animation: glow 2s ease-in-out infinite; }
+.animate-shimmer {
+  background: linear-gradient(90deg, #D4AF37, #9D4EDD, #E63946, #D4AF37);
+  background-size: 200% auto;
+  animation: shimmer 3s linear infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}

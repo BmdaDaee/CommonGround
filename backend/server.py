@@ -151,6 +151,9 @@ class UserProfile(BaseModel):
     display_name: Optional[str] = None
     avatar_url: Optional[str] = None
     appearance: Optional[str] = None
+    gender: Optional[str] = None
+    partner_gender: Optional[str] = None
+    ethnicity: Optional[str] = None
     zodiac_sign: Optional[str] = None
     partner_zodiac: Optional[str] = None
     birth_date: Optional[str] = None
@@ -275,6 +278,9 @@ class AITaskRequest(BaseModel):
 
 class UpdateProfileRequest(BaseModel):
     display_name: Optional[str] = None
+    gender: Optional[str] = None
+    partner_gender: Optional[str] = None
+    ethnicity: Optional[str] = None
     zodiac_sign: Optional[str] = None
     partner_zodiac: Optional[str] = None
     appearance: Optional[str] = None
@@ -467,7 +473,7 @@ async def get_profile(current_user: dict = Depends(get_current_user)):
 @api_router.put("/profile")
 async def update_profile(data: UpdateProfileRequest, current_user: dict = Depends(get_current_user)):
     update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
-    for field in ["display_name", "zodiac_sign", "partner_zodiac", "appearance", "birth_date", "birth_time", "birth_location", "deeply_unlocked", "onboarding_complete"]:
+    for field in ["display_name", "gender", "partner_gender", "ethnicity", "zodiac_sign", "partner_zodiac", "appearance", "birth_date", "birth_time", "birth_location", "deeply_unlocked", "onboarding_complete"]:
         val = getattr(data, field, None)
         if val is not None:
             update_data[field] = val.lower() if field in ["zodiac_sign", "partner_zodiac"] and isinstance(val, str) else val
@@ -534,7 +540,7 @@ async def get_my_pair(current_user: dict = Depends(get_current_user)):
     if pair:
         partner_uid = pair["member_b_uid"] if pair["member_a_uid"] == current_user["uid"] else pair["member_a_uid"]
         if partner_uid:
-            partner_doc = await db.users.find_one({"supabase_uid": partner_uid}, {"_id": 0, "display_name": 1, "avatar_url": 1, "zodiac_sign": 1})
+            partner_doc = await db.users.find_one({"supabase_uid": partner_uid}, {"_id": 0, "display_name": 1, "avatar_url": 1, "zodiac_sign": 1, "gender": 1, "ethnicity": 1})
             partner = serialize_doc(partner_doc) if partner_doc else None
     
     return {"pair": serialize_doc(pair) if pair else None, "partner": partner}
@@ -988,11 +994,21 @@ async def get_portraits(current_user: dict = Depends(get_current_user)):
 async def generate_portrait(data: GeneratePortraitRequest, current_user: dict = Depends(get_current_user)):
     user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
     
+    # Build couple context from gender/ethnicity
+    couple_context = ""
+    user_gender = user_doc.get("gender", "") if user_doc else ""
+    partner_gender = user_doc.get("partner_gender", "") if user_doc else ""
+    user_ethnicity = user_doc.get("ethnicity", "") if user_doc else ""
+    if user_gender and partner_gender:
+        couple_context += f" The couple is a {user_gender} and {partner_gender} couple."
+    if user_ethnicity:
+        couple_context += f" Their ethnicity is {user_ethnicity}."
+    
     # Generate a descriptive prompt for the image
     enhanced_prompt = await generate_ai_text(
-        TASK_PROMPTS["portrait_prompt"].format(context=data.prompt, style=data.style),
+        TASK_PROMPTS["portrait_prompt"].format(context=data.prompt + couple_context, style=data.style),
         f"portrait-prompt-{current_user['uid']}",
-        "You are an art director. Create a short, vivid prompt for a romantic couple portrait. Max 200 words. Just the prompt, no explanation."
+        "You are an art director. Create a short, vivid prompt for a romantic couple portrait. Include the couple's specific gender pairing and ethnicity in the visual description. Max 200 words. Just the prompt, no explanation."
     )
     
     # Generate actual image using GPT Image 1
@@ -1354,7 +1370,15 @@ async def get_avatar(current_user: dict = Depends(get_current_user)):
 
 @api_router.post("/avatar/generate")
 async def generate_avatar(data: AvatarRequest, current_user: dict = Depends(get_current_user)):
-    prompt = f"A single-person avatar portrait in {data.style} art style. {data.description}. Clean background, centered composition, friendly expression, shoulder-up portrait."
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    gender_desc = user_doc.get("gender", "") if user_doc else ""
+    ethnicity_desc = user_doc.get("ethnicity", "") if user_doc else ""
+    identity_context = ""
+    if gender_desc:
+        identity_context += f" The person is {gender_desc}."
+    if ethnicity_desc:
+        identity_context += f" Their ethnicity is {ethnicity_desc}."
+    prompt = f"A single-person avatar portrait in {data.style} art style. {data.description}.{identity_context} Clean background, centered composition, friendly expression, shoulder-up portrait."
     
     image_data = await generate_ai_image(prompt)
     

@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import theme, { getThemeColors } from '../lib/theme';
 
 const CATEGORIES = [
-  { key: 'first', label: 'Firsts', color: '#FF6F8F' },
+  { key: 'first', label: 'Firsts', color: '#E63946' },
   { key: 'anniversary', label: 'Anniversaries', color: '#A78BFA' },
   { key: 'trip', label: 'Trips', color: '#14B8A6' },
   { key: 'milestone', label: 'Milestones', color: '#F59E0B' },

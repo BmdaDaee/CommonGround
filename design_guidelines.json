@@ -2,86 +2,44 @@
   "project_name": "CommonGround",
   "app_type": "hybrid_fullstack",
   "theme": "dark",
-  "archetype": "7 (Electric & Neon - Urban Streetwear / Anime Hybrid)",
-  "vibe": "Anime Vibes with HipHop Urban flows",
+  "archetype": "Black Gold / Iridescent Purple / Red — Urban Streetwear / Anime Hybrid",
+  "vibe": "Anime Vibes with HipHop Urban flows — Luxury Dark",
   "colors": {
     "background": "#050505",
-    "surface": "#121212",
-    "surface_glass": "rgba(0, 0, 0, 0.6)",
-    "primary": "#FF3333",
-    "secondary": "#FFE600",
+    "surface": "#0C0C0C",
+    "surface_glass": "rgba(10, 10, 10, 0.85)",
+    "primary": "#D4AF37",
+    "secondary": "#9D4EDD",
+    "highlight": "#E63946",
     "text_primary": "#FFFFFF",
-    "text_secondary": "#8A8A93",
-    "border": "#222222",
+    "text_secondary": "#9CA3AF",
+    "border": "#1F1F1F",
     "deeplyus_bg": "#1A0000",
-    "deeplyus_accent": "#8B0000",
-    "hover_state_multiplier": "lighten 15%"
+    "deeplyus_accent": "#8B0000"
   },
   "typography": {
     "headings_font": "Unbounded",
     "body_font": "Manrope",
     "heading_style": "uppercase tracking-tighter font-black",
-    "body_style": "tracking-normal leading-relaxed font-medium text-base",
-    "hierarchy": {
-      "h1": "text-5xl sm:text-6xl",
-      "h2": "text-3xl sm:text-4xl",
-      "h3": "text-xl sm:text-2xl",
-      "body": "text-base",
-      "label": "text-xs tracking-[0.2em] uppercase"
-    }
+    "body_style": "tracking-normal leading-relaxed font-medium text-base"
   },
   "layout": {
-    "grid_system": "Bento 'Tetris' Grid (Mode A) with asymmetric spans",
-    "spacing_scale": "p-6, p-8, p-12 (Generous spacing)",
-    "corners": "rounded-none for brutalist cards, rounded-full for pills/buttons",
-    "borders": "1px solid border-border with intense shadow offsets on hover"
+    "grid_system": "Bento card modules with asymmetric spans",
+    "spacing_scale": "Generous (p-6, p-8, p-12)",
+    "corners": "rounded-none for brutalist cards",
+    "borders": "1px solid #1F1F1F with gold shadow offsets on hover"
   },
   "components": {
-    "buttons": "Solid primary color, black text, brutalist hover effect (-translate-y-1, brutalist box shadow), never generic pill.",
-    "cards": "Glassmorphism 2.0 (backdrop-blur-xl, bg-black/60, 1px bright border-white/10). No muddy grey backgrounds.",
-    "forms": "Shadcn based, high contrast. Focus states must have neon glows (focus:ring-primary).",
-    "navigation": "Bottom navigation with Phosphor icons. Active state is an electric yellow underline/glow.",
-    "header": "Crystal Glass sticky header (backdrop-blur-xl bg-black/60 border-b border-white/10)"
+    "buttons": "Solid gold (#D4AF37), black text, brutalist hover effect",
+    "cards": "bg-black/85, backdrop-blur-xl, 1px border-white/5, gold glow on hover",
+    "navigation": "Bottom nav with Phosphor icons. Active state = gold underline/glow. DeeplyUs = red.",
+    "forms": "High contrast, dark background. Focus states have gold glows."
   },
   "visual_effects": {
-    "textures": "Heavy noise/grain overlay globally on dark sections.",
-    "decorations": "Massive kinetic marquee text in backgrounds (outline text, text-8xl+, react-fast-marquee).",
-    "animations": "Framer motion staggered entrances, hover scale-up on bento grid items, parallax scrolling with Lenis.",
-    "glassmorphism": "backdrop-blur-xl bg-white/5 for dark mode containers with 1px border-white/10."
-  },
-  "media": [
-    {
-      "category": "hero_background",
-      "url": "https://images.pexels.com/photos/17195067/pexels-photo-17195067.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-      "description": "Vibrant urban alley illuminated by neon signs"
-    },
-    {
-      "category": "couple_portraits",
-      "url": "https://images.unsplash.com/photo-1683664794354-31b59f51e10c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwxfHxjb3VwbGUlMjBzdHJlZXR3ZWFyJTIwZmFzaGlvbnxlbnwwfHx8fDE3NzU1NjUyNDd8MA&ixlib=rb-4.1.0&q=85",
-      "description": "Diverse couple in trendy streetwear"
-    },
-    {
-      "category": "bently_ai_avatar",
-      "url": "https://images.unsplash.com/photo-1633957897986-70e83293f3ff?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwxfHxyb2JvdCUyMGZ1dHVyaXN0aWMlMjBhdmF0YXJ8ZW58MHx8fHwxNzc1NTY1MjQ3fDA&ixlib=rb-4.1.0&q=85",
-      "description": "Mecha-inspired robotic avatar"
-    },
-    {
-      "category": "deeply_us_background",
-      "url": "https://images.unsplash.com/photo-1761078739411-2ccb6e956c16?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzB8MHwxfHNlYXJjaHwxfHxkYXJrJTIwcmVkJTIwdmVsdmV0JTIwYWJzdHJhY3R8ZW58MHx8fHwxNzc1NTY1MjQ3fDA&ixlib=rb-4.1.0&q=85",
-      "description": "Dark cinematic infrared lighting with velvet red abstract patterns"
-    }
-  ],
-  "accessibility_and_testing": {
-    "contrast": "APCA contrast calculator used. Text shadow required over complex images.",
-    "testing_attributes": "All interactive elements MUST include 'data-testid' in kebab-case format."
-  },
-  "instructions_to_main_agent": [
-    "Run: yarn add @phosphor-icons/react react-fast-marquee framer-motion",
-    "Use pure HTML + Tailwind for structural/hero layouts, Shadcn for interactive logic.",
-    "Embrace asymmetry. The UI should feel like a high-end streetwear magazine drop, mixing raw brutalist components with refined glassmorphism.",
-    "Implement 'DeeplyUs' mode by overriding the theme colors completely (shift from dark/neon to deep crimson/infrared).",
-    "Include 'data-testid' attributes extensively on all interactable elements and major content blocks.",
-    "DO NOT center everything. Use strong left alignment and tension in layouts.",
-    "Images MUST not exceed 80vh on mobile."
-  ]
+    "textures": "Noise/grain overlay globally on dark sections",
+    "decorations": "Massive kinetic marquee text in backgrounds (gold outline)",
+    "animations": "Framer motion staggered entrances, hover scale-up on bento grid items",
+    "glassmorphism": "backdrop-blur-xl bg-black/85 with 1px border-white/5",
+    "shimmer": "CSS shimmer animation using gold-purple-red gradient for special text"
+  }
 }

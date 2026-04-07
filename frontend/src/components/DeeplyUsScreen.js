@@ -35,7 +35,7 @@ function UnlockGate({ onUnlock }) {
           width: '80px',
           height: '80px',
           borderRadius: theme.radius.round,
-          background: 'linear-gradient(135deg, #3B1E5A, #FF6F8F)',
+          background: 'linear-gradient(135deg, #9D4EDD, #E63946)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -101,7 +101,7 @@ function UnlockGate({ onUnlock }) {
 
 function PromptCard({ prompt, onExplore, mode }) {
   const categoryColors = {
-    fantasy: '#FF6F8F',
+    fantasy: '#E63946',
     desire: '#FF8FAF',
     insecurity: '#4A6CFF',
     exploration: '#F5C76B',

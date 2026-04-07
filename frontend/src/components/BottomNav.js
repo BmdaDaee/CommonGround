@@ -29,7 +29,7 @@ export default function BottomNav() {
       position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
       background: 'rgba(5,5,5,0.92)',
       backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-      borderTop: '1px solid #222',
+      borderTop: '1px solid #1F1F1F',
       padding: `${theme.spacing[2]} 0 env(safe-area-inset-bottom, ${theme.spacing[2]})`,
     }}>
       <div style={{
@@ -39,6 +39,7 @@ export default function BottomNav() {
         {NAV_ITEMS.map((item) => {
           const isActive = active === item.key;
           const Icon = item.icon;
+          const activeColor = item.key === 'deeply' ? '#E63946' : '#D4AF37';
           return (
             <button
               key={item.key}
@@ -54,26 +55,25 @@ export default function BottomNav() {
               <Icon
                 size={22}
                 weight={isActive ? 'fill' : 'regular'}
-                color={isActive ? '#FF3333' : '#555560'}
+                color={isActive ? activeColor : '#555555'}
               />
               <span style={{
                 fontSize: '9px',
                 fontWeight: 700,
                 letterSpacing: '0.12em',
                 fontFamily: theme.typography.fontFamily.heading,
-                color: isActive ? '#FF3333' : '#555560',
+                color: isActive ? activeColor : '#555555',
                 transition: `color ${theme.motion.duration.fast}`,
               }}>
                 {item.label}
               </span>
-              {/* Active indicator bar */}
               {isActive && (
                 <div style={{
                   position: 'absolute', bottom: '-2px',
                   width: '20px', height: '2px',
-                  background: '#FF3333',
+                  background: activeColor,
                   borderRadius: '1px',
-                  boxShadow: '0 0 8px rgba(255,51,51,0.6)',
+                  boxShadow: `0 0 8px ${item.key === 'deeply' ? 'rgba(230,57,70,0.6)' : 'rgba(212,175,55,0.6)'}`,
                 }} />
               )}
             </button>

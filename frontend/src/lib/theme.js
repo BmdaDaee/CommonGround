@@ -1,35 +1,36 @@
-// CommonGround Theme — Electric Neon / Anime x Hip-Hop Urban
+// CommonGround Theme — Black Gold / Iridescent Purple / Red — Anime x Hip-Hop Urban
 export const theme = {
   colors: {
     bg: {
       primary: '#050505',
-      secondary: '#121212',
-      surface: 'rgba(0,0,0,0.6)',
-      depth: '#1A1A1A',
-      glass: 'rgba(255,255,255,0.04)',
+      secondary: '#0C0C0C',
+      surface: 'rgba(10,10,10,0.85)',
+      depth: '#111111',
+      glass: 'rgba(255,255,255,0.03)',
     },
     accent: {
-      primary: '#FF3333',
-      secondary: '#FFE600',
-      highlight: '#00FF88',
+      primary: '#D4AF37',     // Gold
+      secondary: '#9D4EDD',   // Iridescent Purple
+      highlight: '#E63946',   // Deep Red
     },
     gradient: {
-      emotional: { start: '#FF3333', end: '#FFE600' },
-      neon: { start: '#FF3333', end: '#FF0066' },
+      emotional: { start: '#D4AF37', end: '#9D4EDD' },
+      neon: { start: '#9D4EDD', end: '#E63946' },
+      iridescent: { start: '#7B2FF7', end: '#C084FC', mid: '#D4AF37' },
     },
     text: {
       primary: '#FFFFFF',
-      secondary: '#8A8A93',
-      muted: '#555560',
-      accent: '#FF3333',
+      secondary: '#9CA3AF',
+      muted: '#555555',
+      accent: '#D4AF37',
     },
-    border: '#222222',
-    // DeeplyUs — crimson infrared
+    border: '#1F1F1F',
+    // DeeplyUs — deep crimson/infrared
     deep: {
-      bg: { primary: '#1A0000', secondary: '#2A0505', surface: 'rgba(40,0,0,0.6)' },
-      accent: { primary: '#FF3333', secondary: '#8B0000', highlight: '#FFE600' },
-      gradient: { start: '#8B0000', end: '#FF3333' },
-      text: { primary: '#FFFFFF', secondary: '#D9A0A0', muted: '#8A5555', accent: '#FF3333' },
+      bg: { primary: '#1A0000', secondary: '#2A0505', surface: 'rgba(40,0,0,0.7)' },
+      accent: { primary: '#E63946', secondary: '#8B0000', highlight: '#D4AF37' },
+      gradient: { start: '#8B0000', end: '#E63946' },
+      text: { primary: '#FFFFFF', secondary: '#D9A0A0', muted: '#8A5555', accent: '#E63946' },
     },
   },
 
@@ -56,14 +57,14 @@ export const theme = {
   },
 
   shadow: {
-    soft: '0 2px 8px rgba(0,0,0,0.4)',
-    medium: '0 4px 16px rgba(0,0,0,0.5)',
-    card: '0 8px 32px rgba(0,0,0,0.6)',
-    brutalist: '4px 4px 0px #FF3333',
-    neonGlow: '0 0 20px rgba(255,51,51,0.4), 0 0 60px rgba(255,51,51,0.15)',
+    soft: '0 2px 8px rgba(0,0,0,0.5)',
+    medium: '0 4px 16px rgba(0,0,0,0.6)',
+    card: '0 8px 32px rgba(0,0,0,0.7)',
+    brutalist: '4px 4px 0px #D4AF37',
+    neonGlow: '0 0 20px rgba(212,175,55,0.3), 0 0 60px rgba(157,78,221,0.15)',
     deep: {
       soft: '0 4px 16px rgba(139,0,0,0.3)',
-      glow: '0 0 24px rgba(255,51,51,0.5)',
+      glow: '0 0 24px rgba(230,57,70,0.5)',
     },
   },
 
