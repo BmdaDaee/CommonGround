@@ -10,12 +10,19 @@ export default function HomeScreen() {
   const [dailyQuestion, setDailyQuestion] = useState(null);
   const [answer, setAnswer] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [partnerData, setPartnerData] = useState(null);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const t = getThemeColors(mode);
 
   useEffect(() => {
     loadDailyQuestion();
+    loadNotifications();
   }, []);
+
+  useEffect(() => {
+    if (submitted) loadPartnerAnswer();
+  }, [submitted]);
 
   const loadDailyQuestion = async () => {
     try {
@@ -29,6 +36,24 @@ export default function HomeScreen() {
       console.error('Failed to load daily question:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPartnerAnswer = async () => {
+    try {
+      const { data } = await api.getPartnerAnswer();
+      setPartnerData(data);
+    } catch (err) {
+      console.error('Failed to load partner answer:', err);
+    }
+  };
+
+  const loadNotifications = async () => {
+    try {
+      const { data } = await api.getNotifications();
+      setNotifications(data.notifications || []);
+    } catch (err) {
+      console.error('Failed to load notifications:', err);
     }
   };
 
@@ -195,11 +220,66 @@ export default function HomeScreen() {
                   }}>
                     {answer}
                   </p>
+
+                  {/* Partner answer sync */}
+                  {partnerData?.both_answered && partnerData.partner_answer && (
+                    <div data-testid="partner-answer-display" style={{
+                      marginTop: theme.spacing[3],
+                      padding: theme.spacing[3],
+                      borderRadius: theme.radius.md,
+                      background: 'rgba(255,255,255,0.15)',
+                      borderLeft: `3px solid ${mode === 'deeplyus' ? theme.colors.deep.accent.primary : '#FF8FAF'}`,
+                    }}>
+                      <span style={{ fontSize: theme.typography.size.xs, color: 'rgba(255,255,255,0.6)', fontWeight: theme.typography.weight.semibold, textTransform: 'uppercase' }}>
+                        Partner's Answer
+                      </span>
+                      <p style={{ fontSize: theme.typography.size.sm, color: mode === 'deeplyus' ? '#FFFFFF' : theme.colors.text.primary, lineHeight: theme.typography.lineHeight.relaxed, marginTop: theme.spacing[1] }}>
+                        {partnerData.partner_answer}
+                      </p>
+                    </div>
+                  )}
+                  {partnerData && !partnerData.both_answered && partnerData.partner_answered && (
+                    <p style={{ marginTop: theme.spacing[2], fontSize: theme.typography.size.xs, color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
+                      Your partner has answered too! Both answers are now visible.
+                    </p>
+                  )}
+                  {partnerData && !partnerData.partner_answered && (
+                    <p style={{ marginTop: theme.spacing[2], fontSize: theme.typography.size.xs, color: 'rgba(255,255,255,0.5)', fontStyle: 'italic' }}>
+                      Waiting for your partner to answer...
+                    </p>
+                  )}
                 </div>
               )}
             </>
           )}
         </div>
+
+        {/* Notifications */}
+        {notifications.length > 0 && (
+          <div data-testid="notifications-banner" style={{ marginBottom: theme.spacing[4] }}>
+            {notifications.map((n, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  if (n.type === 'love_language') setView('love-language');
+                  else if (n.type === 'partner_answered' || n.type === 'partner_waiting') {}
+                }}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: theme.spacing[3],
+                  padding: theme.spacing[3], borderRadius: theme.radius.md, marginBottom: theme.spacing[2],
+                  background: mode === 'deeplyus' ? 'rgba(74,108,255,0.15)' : 'rgba(99,102,241,0.08)',
+                  border: `1px solid ${mode === 'deeplyus' ? 'rgba(74,108,255,0.3)' : 'rgba(99,102,241,0.15)'}`,
+                  cursor: 'pointer', textAlign: 'left',
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>
+                  {n.type === 'love_language' ? '💕' : n.type === 'partner_answered' ? '💌' : '⏳'}
+                </span>
+                <span style={{ fontSize: theme.typography.size.xs, color: t.text.primary }}>{n.message}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div style={{
@@ -207,34 +287,12 @@ export default function HomeScreen() {
           gridTemplateColumns: 'repeat(2, 1fr)',
           gap: theme.spacing[3],
         }}>
-          <QuickAction 
-            icon="✨" 
-            label="Horoscope" 
-            description="Your daily stars"
-            onClick={() => setView('horoscope')}
-            mode={mode}
-          />
-          <QuickAction 
-            icon="💜" 
-            label="Trust" 
-            description="Build together"
-            onClick={() => setView('trust')}
-            mode={mode}
-          />
-          <QuickAction 
-            icon="🎵" 
-            label="Favorites" 
-            description="Share what you love"
-            onClick={() => setView('favorites')}
-            mode={mode}
-          />
-          <QuickAction 
-            icon="💬" 
-            label="Chat" 
-            description="Talk to BentlyAI"
-            onClick={() => setView('chat')}
-            mode={mode}
-          />
+          <QuickAction icon="✨" label="Horoscope" description="Your daily stars" onClick={() => setView('horoscope')} mode={mode} />
+          <QuickAction icon="💜" label="Trust" description="Build together" onClick={() => setView('trust')} mode={mode} />
+          <QuickAction icon="💕" label="Love Language" description="Know your style" onClick={() => setView('love-language')} mode={mode} />
+          <QuickAction icon="💬" label="Chat" description="Talk to BentlyAI" onClick={() => setView('chat')} mode={mode} />
+          <QuickAction icon="🎨" label="Portraits" description="AI couple art" onClick={() => setView('portraits')} mode={mode} />
+          <QuickAction icon="🌙" label="Astrology" description="Cosmic blueprint" onClick={() => setView('astrology')} mode={mode} />
         </div>
       </div>
     </div>

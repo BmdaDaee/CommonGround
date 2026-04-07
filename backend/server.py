@@ -13,7 +13,9 @@ from datetime import datetime, timezone, date
 import httpx
 import random
 import base64
+import json
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+from emergentintegrations.llm.openai.image_generation import OpenAIImageGeneration
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -110,6 +112,36 @@ DEEPLY_EXERCISES = [
     {"id": "insecurity-share", "title": "Body Insecurity Share", "description": "Share one insecurity about your body. Partner responds only with what they love about that part.", "duration": "10 min", "difficulty": "Hard", "category": "vulnerability"},
 ]
 
+# ============== LOVE LANGUAGE QUIZ ==============
+
+LOVE_LANGUAGES = ["words_of_affirmation", "acts_of_service", "receiving_gifts", "quality_time", "physical_touch"]
+
+LOVE_LANGUAGE_LABELS = {
+    "words_of_affirmation": "Words of Affirmation",
+    "acts_of_service": "Acts of Service",
+    "receiving_gifts": "Receiving Gifts",
+    "quality_time": "Quality Time",
+    "physical_touch": "Physical Touch",
+}
+
+LOVE_LANGUAGE_QUIZ = [
+    {"id": 1, "a": {"text": "I feel loved when my partner tells me they appreciate me", "lang": "words_of_affirmation"}, "b": {"text": "I feel loved when my partner helps me with tasks", "lang": "acts_of_service"}},
+    {"id": 2, "a": {"text": "I feel loved when my partner gives me a thoughtful gift", "lang": "receiving_gifts"}, "b": {"text": "I feel loved when my partner spends quality time with me", "lang": "quality_time"}},
+    {"id": 3, "a": {"text": "I feel loved when my partner holds my hand or hugs me", "lang": "physical_touch"}, "b": {"text": "I feel loved when my partner says encouraging things", "lang": "words_of_affirmation"}},
+    {"id": 4, "a": {"text": "I feel loved when my partner does chores without being asked", "lang": "acts_of_service"}, "b": {"text": "I feel loved when my partner surprises me with something", "lang": "receiving_gifts"}},
+    {"id": 5, "a": {"text": "I feel loved when my partner gives me their undivided attention", "lang": "quality_time"}, "b": {"text": "I feel loved when my partner is physically affectionate", "lang": "physical_touch"}},
+    {"id": 6, "a": {"text": "I feel loved when my partner writes me a note or text", "lang": "words_of_affirmation"}, "b": {"text": "I feel loved when my partner cooks or fixes things for me", "lang": "acts_of_service"}},
+    {"id": 7, "a": {"text": "I feel loved when my partner picks out something special for me", "lang": "receiving_gifts"}, "b": {"text": "I feel loved when we do activities together", "lang": "quality_time"}},
+    {"id": 8, "a": {"text": "I feel loved when my partner cuddles with me", "lang": "physical_touch"}, "b": {"text": "I feel loved when my partner compliments me", "lang": "words_of_affirmation"}},
+    {"id": 9, "a": {"text": "I feel loved when my partner takes care of something I've been stressing about", "lang": "acts_of_service"}, "b": {"text": "I feel loved when my partner remembers occasions with gifts", "lang": "receiving_gifts"}},
+    {"id": 10, "a": {"text": "I feel loved when my partner plans a date for us", "lang": "quality_time"}, "b": {"text": "I feel loved when my partner gives me a back rub", "lang": "physical_touch"}},
+    {"id": 11, "a": {"text": "I feel loved when my partner says 'I love you'", "lang": "words_of_affirmation"}, "b": {"text": "I feel loved when my partner and I go on walks together", "lang": "quality_time"}},
+    {"id": 12, "a": {"text": "I feel loved when my partner brings me something unexpected", "lang": "receiving_gifts"}, "b": {"text": "I feel loved when my partner rubs my shoulders after a long day", "lang": "physical_touch"}},
+    {"id": 13, "a": {"text": "I feel loved when my partner handles errands so I can rest", "lang": "acts_of_service"}, "b": {"text": "I feel loved when my partner tells me what they admire about me", "lang": "words_of_affirmation"}},
+    {"id": 14, "a": {"text": "I feel loved when my partner puts away their phone to be with me", "lang": "quality_time"}, "b": {"text": "I feel loved when my partner makes something for me", "lang": "acts_of_service"}},
+    {"id": 15, "a": {"text": "I feel loved when my partner plays with my hair or holds me", "lang": "physical_touch"}, "b": {"text": "I feel loved when my partner picks out a gift that shows they know me", "lang": "receiving_gifts"}},
+]
+
 # ============== MODELS ==============
 
 class UserProfile(BaseModel):
@@ -128,6 +160,8 @@ class UserProfile(BaseModel):
     active_pair_id: Optional[str] = None
     deeply_unlocked: bool = False
     onboarding_complete: bool = False
+    love_languages: Optional[Dict[str, int]] = None
+    push_subscription: Optional[Dict[str, Any]] = None
     favorites: Dict[str, List[str]] = Field(default_factory=lambda: {"music": [], "games": [], "movies": []})
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -297,6 +331,20 @@ class GeneratePortraitRequest(BaseModel):
     prompt: str
     style: str = "anime"
 
+class LoveLanguageSubmitRequest(BaseModel):
+    answers: List[str]  # list of chosen language keys
+
+class PushSubscriptionRequest(BaseModel):
+    endpoint: str
+    keys: Dict[str, str]
+
+class AstrologyDeepDiveRequest(BaseModel):
+    birth_date: str
+    birth_time: Optional[str] = None
+    birth_location: Optional[str] = None
+    partner_birth_date: Optional[str] = None
+    partner_birth_time: Optional[str] = None
+
 # ============== AUTH ==============
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
@@ -345,6 +393,17 @@ async def generate_ai_text(prompt: str, session_id: str, system_message: str = "
     except Exception as e:
         logger.error(f"AI text generation error: {e}")
         return "I'm having trouble connecting right now. Let's try again."
+
+async def generate_ai_image(prompt: str) -> Optional[str]:
+    try:
+        image_gen = OpenAIImageGeneration(api_key=EMERGENT_LLM_KEY)
+        images = await image_gen.generate_images(prompt=prompt, model="gpt-image-1", number_of_images=1)
+        if images and len(images) > 0:
+            return base64.b64encode(images[0]).decode('utf-8')
+        return None
+    except Exception as e:
+        logger.error(f"AI image generation error: {e}")
+        return None
 
 # ============== TASK PROMPTS ==============
 
@@ -798,16 +857,26 @@ async def ai_chat(data: ChatRequest, current_user: dict = Depends(get_current_us
         await db.sessions.insert_one(session_dict)
         session_doc = session_dict
     
+    # Get user love language for personalization
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    love_lang_context = ""
+    if user_doc and user_doc.get("love_languages"):
+        ll = user_doc["love_languages"]
+        sorted_ll = sorted(ll.items(), key=lambda x: x[1], reverse=True)
+        primary = LOVE_LANGUAGE_LABELS.get(sorted_ll[0][0], sorted_ll[0][0]) if sorted_ll else "unknown"
+        secondary = LOVE_LANGUAGE_LABELS.get(sorted_ll[1][0], sorted_ll[1][0]) if len(sorted_ll) > 1 else "unknown"
+        love_lang_context = f"\nThis user's primary love language is {primary}, secondary is {secondary}. Tailor advice to match their communication style."
+
     # Different system prompts for CommonGround vs DeeplyUs
     if data.mode == "deeplyus":
-        system_prompt = """You are BentlyAI in DeeplyUs mode - helping couples explore their intimate connection, desires, fantasies, and insecurities around sexuality and physical intimacy.
+        system_prompt = f"""You are BentlyAI in DeeplyUs mode - helping couples explore their intimate connection, desires, fantasies, and insecurities around sexuality and physical intimacy.
 Be open, non-judgmental, warm, and sex-positive. Help them communicate about desires, boundaries, kinks, and insecurities.
-Keep responses concise but thoughtful. Never shame. Always emphasize consent and communication."""
+Keep responses concise but thoughtful. Never shame. Always emphasize consent and communication.{love_lang_context}"""
     else:
         vibe_instructions = {"soft": "Be gentle, validating, warm.", "realtalk": "Be direct but caring.", "savage": "Be brutally honest."}
         system_prompt = f"""You are BentlyAI, a relationship coach. Help couples communicate better.
 Your style: {vibe_instructions.get(data.vibe or 'realtalk', vibe_instructions['realtalk'])}
-Keep responses concise (2-4 sentences). Focus on emotional truth. Never be preachy."""
+Keep responses concise (2-4 sentences). Focus on emotional truth. Never be preachy.{love_lang_context}"""
     
     history = session_doc.get("history", [])[-10:]
     history_str = "\n".join([f"{m['role'].upper()}: {m['content']}" for m in history])
@@ -919,26 +988,217 @@ async def get_portraits(current_user: dict = Depends(get_current_user)):
 async def generate_portrait(data: GeneratePortraitRequest, current_user: dict = Depends(get_current_user)):
     user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
     
-    # Generate a descriptive prompt
+    # Generate a descriptive prompt for the image
     enhanced_prompt = await generate_ai_text(
         TASK_PROMPTS["portrait_prompt"].format(context=data.prompt, style=data.style),
         f"portrait-prompt-{current_user['uid']}",
-        "You are an art director creating prompts for romantic couple portraits."
+        "You are an art director. Create a short, vivid prompt for a romantic couple portrait. Max 200 words. Just the prompt, no explanation."
     )
     
-    # For now, create placeholder - real image gen would need separate API
-    portrait = CouplePortrait(pair_id=user_doc.get("active_pair_id"), user_id=current_user["uid"], prompt=data.prompt, style=data.style)
+    # Generate actual image using GPT Image 1
+    image_data = await generate_ai_image(enhanced_prompt)
+    
+    portrait = CouplePortrait(pair_id=user_doc.get("active_pair_id"), user_id=current_user["uid"], prompt=data.prompt, style=data.style, image_data=image_data)
     p_dict = portrait.model_dump()
     p_dict["created_at"] = p_dict["created_at"].isoformat()
     p_dict["enhanced_prompt"] = enhanced_prompt
-    p_dict["image_data"] = None  # Would be filled by image generation
     await db.portraits.insert_one(p_dict)
     if "_id" in p_dict:
         del p_dict["_id"]
     
-    return {"portrait": p_dict, "note": "Portrait prompt created. Image generation requires Imagen API."}
+    return {"portrait": p_dict}
 
 # Include router
+
+# === Love Language Quiz ===
+
+@api_router.get("/love-language/quiz")
+async def get_love_language_quiz():
+    return {"questions": LOVE_LANGUAGE_QUIZ, "languages": LOVE_LANGUAGE_LABELS}
+
+@api_router.post("/love-language/submit")
+async def submit_love_language(data: LoveLanguageSubmitRequest, current_user: dict = Depends(get_current_user)):
+    scores = {lang: 0 for lang in LOVE_LANGUAGES}
+    for answer in data.answers:
+        if answer in scores:
+            scores[answer] += 1
+    
+    sorted_langs = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    primary = sorted_langs[0][0]
+    secondary = sorted_langs[1][0] if len(sorted_langs) > 1 else sorted_langs[0][0]
+    
+    await db.users.update_one({"supabase_uid": current_user["uid"]}, {"$set": {"love_languages": scores}})
+    
+    return {
+        "scores": scores,
+        "primary": primary,
+        "primary_label": LOVE_LANGUAGE_LABELS[primary],
+        "secondary": secondary,
+        "secondary_label": LOVE_LANGUAGE_LABELS[secondary],
+    }
+
+@api_router.get("/love-language/results")
+async def get_love_language_results(current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]}, {"_id": 0})
+    ll = user_doc.get("love_languages")
+    if not ll:
+        return {"completed": False, "scores": None}
+    
+    sorted_langs = sorted(ll.items(), key=lambda x: x[1], reverse=True)
+    primary = sorted_langs[0][0]
+    secondary = sorted_langs[1][0] if len(sorted_langs) > 1 else primary
+    
+    # Try to get partner love languages
+    partner_ll = None
+    if user_doc.get("active_pair_id"):
+        pair = await db.pairs.find_one({"id": user_doc["active_pair_id"]})
+        if pair:
+            partner_uid = pair["member_b_uid"] if pair["member_a_uid"] == current_user["uid"] else pair.get("member_a_uid")
+            if partner_uid:
+                partner_doc = await db.users.find_one({"supabase_uid": partner_uid}, {"_id": 0})
+                if partner_doc and partner_doc.get("love_languages"):
+                    p_sorted = sorted(partner_doc["love_languages"].items(), key=lambda x: x[1], reverse=True)
+                    partner_ll = {
+                        "scores": partner_doc["love_languages"],
+                        "primary": p_sorted[0][0],
+                        "primary_label": LOVE_LANGUAGE_LABELS[p_sorted[0][0]],
+                    }
+    
+    return {
+        "completed": True,
+        "scores": ll,
+        "primary": primary,
+        "primary_label": LOVE_LANGUAGE_LABELS[primary],
+        "secondary": secondary,
+        "secondary_label": LOVE_LANGUAGE_LABELS[secondary],
+        "partner": partner_ll,
+        "labels": LOVE_LANGUAGE_LABELS,
+    }
+
+# === Enhanced Astrology ===
+
+@api_router.post("/astrology/deep-dive")
+async def astrology_deep_dive(data: AstrologyDeepDiveRequest, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    partner_info = ""
+    if data.partner_birth_date:
+        partner_info = f"Partner birth: {data.partner_birth_date}, time: {data.partner_birth_time or 'unknown'}."
+    
+    prompt = f"""Generate a detailed astrology profile and compatibility reading.
+Person: Born {data.birth_date}, time: {data.birth_time or 'unknown'}, location: {data.birth_location or 'unknown'}.
+{partner_info}
+Partner zodiac: {user_doc.get('partner_zodiac', 'unknown')}.
+
+Return JSON with:
+- sun_sign, moon_sign, rising_sign
+- element, modality
+- personality_summary (3 sentences)
+- love_style (2 sentences about how they love)
+- compatibility_score (1-100)
+- compatibility_summary (3 sentences)
+- strengths (list of 3)
+- challenges (list of 3)
+- advice (1 practical tip)
+- weekly_forecast (3 sentences about this week)"""
+    
+    result = await generate_ai_text(prompt, f"astro-deep-{current_user['uid']}", "You are an expert astrologer. Always respond in valid JSON only.")
+    
+    try:
+        start = result.find('{')
+        end = result.rfind('}') + 1
+        if start != -1 and end > start:
+            astro_data = json.loads(result[start:end])
+        else:
+            astro_data = {"sun_sign": "unknown", "summary": result}
+    except Exception:
+        astro_data = {"sun_sign": "unknown", "summary": result}
+    
+    await db.users.update_one(
+        {"supabase_uid": current_user["uid"]},
+        {"$set": {"astrology_profile": astro_data, "birth_date": data.birth_date, "birth_time": data.birth_time, "birth_location": data.birth_location}}
+    )
+    return {"astrology": astro_data}
+
+# === Partner Sync (Daily Questions) ===
+
+@api_router.get("/daily-question/partner")
+async def get_partner_answer(current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
+    if not pair_id:
+        return {"partner_answered": False, "partner_answer": None}
+    
+    today = get_today_date()
+    question = await db.daily_questions.find_one({"pair_id": pair_id, "date": today}, {"_id": 0})
+    
+    if not question or not question.get("answers"):
+        return {"partner_answered": False, "partner_answer": None}
+    
+    # Find partner uid
+    pair = await db.pairs.find_one({"id": pair_id})
+    partner_uid = pair["member_b_uid"] if pair["member_a_uid"] == current_user["uid"] else pair.get("member_a_uid")
+    
+    user_answered = current_user["uid"] in question["answers"]
+    partner_answered = partner_uid in question["answers"] if partner_uid else False
+    
+    # Only reveal partner answer if BOTH have answered
+    partner_answer = None
+    if user_answered and partner_answered:
+        partner_answer = question["answers"].get(partner_uid)
+    
+    return {
+        "partner_answered": partner_answered,
+        "both_answered": user_answered and partner_answered,
+        "partner_answer": partner_answer,
+        "question": question.get("question"),
+    }
+
+# === Push Notification Subscriptions ===
+
+@api_router.post("/push/subscribe")
+async def push_subscribe(data: PushSubscriptionRequest, current_user: dict = Depends(get_current_user)):
+    sub_data = {"endpoint": data.endpoint, "keys": data.keys}
+    await db.users.update_one({"supabase_uid": current_user["uid"]}, {"$set": {"push_subscription": sub_data}})
+    return {"subscribed": True}
+
+@api_router.delete("/push/subscribe")
+async def push_unsubscribe(current_user: dict = Depends(get_current_user)):
+    await db.users.update_one({"supabase_uid": current_user["uid"]}, {"$set": {"push_subscription": None}})
+    return {"unsubscribed": True}
+
+@api_router.get("/push/status")
+async def push_status(current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]}, {"_id": 0})
+    return {"enabled": user_doc.get("push_subscription") is not None}
+
+# === Notifications (In-App) ===
+
+@api_router.get("/notifications")
+async def get_notifications(current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
+    notifs = []
+    today = get_today_date()
+    
+    # Check if partner answered daily question
+    if pair_id:
+        question = await db.daily_questions.find_one({"pair_id": pair_id, "date": today})
+        if question:
+            pair = await db.pairs.find_one({"id": pair_id})
+            partner_uid = pair["member_b_uid"] if pair["member_a_uid"] == current_user["uid"] else pair.get("member_a_uid")
+            if partner_uid and partner_uid in question.get("answers", {}):
+                user_answered = current_user["uid"] in question.get("answers", {})
+                if user_answered:
+                    notifs.append({"type": "partner_answered", "message": "Your partner answered today's question! See their response.", "date": today})
+                else:
+                    notifs.append({"type": "partner_waiting", "message": "Your partner already answered today's question. Your turn!", "date": today})
+    
+    # Check if love language quiz not taken
+    if not user_doc.get("love_languages"):
+        notifs.append({"type": "love_language", "message": "Take the Love Language Quiz to personalize your BentlyAI experience!", "date": today})
+    
+    return {"notifications": notifs}
+
 app.include_router(api_router)
 
 app.add_middleware(

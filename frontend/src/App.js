@@ -15,6 +15,9 @@ import ListsScreen from './components/ListsScreen';
 import JournalScreen from './components/JournalScreen';
 import ModulesScreen from './components/ModulesScreen';
 import DeeplyUsScreen from './components/DeeplyUsScreen';
+import LoveLanguageScreen from './components/LoveLanguageScreen';
+import PortraitsScreen from './components/PortraitsScreen';
+import AstrologyScreen from './components/AstrologyScreen';
 import UsScreen, { MeScreen } from './components/SubNav';
 import BottomNav from './components/BottomNav';
 import './App.css';
@@ -39,30 +42,9 @@ function LoadingScreen() {
   );
 }
 
-function AppContent() {
-  const { user, profile, pair, loading } = useAuth();
+function MainApp() {
   const { view, setView } = useApp();
 
-  if (loading) {
-    return <LoadingScreen />;
-  }
-
-  if (!user) {
-    return <AuthScreen />;
-  }
-
-  // Onboarding: user logged in but hasn't completed profile setup
-  if (!profile?.onboarding_complete) {
-    return <OnboardingScreen />;
-  }
-
-  // Pairing: user onboarded but not paired yet
-  if (!pair) {
-    return <PairingScreen />;
-  }
-
-  // Main app — user is logged in, onboarded, and paired
-  // Redirect 'us' and 'me' to their default sub-views
   useEffect(() => {
     if (view === 'us') setView('modules');
     if (view === 'me') setView('favorites');
@@ -73,26 +55,30 @@ function AppContent() {
     if (view === 'chat') return <ChatScreen />;
     if (view === 'tools') return <ToolsScreen />;
     if (view === 'deeply') return <DeeplyUsScreen />;
+    if (view === 'love-language') return <LoveLanguageScreen />;
 
     // Us tab
-    if (['modules', 'trust', 'calendar', 'lists', 'portraits'].includes(view)) {
+    if (['modules', 'trust', 'calendar', 'lists', 'portraits', 'astrology'].includes(view)) {
       return (
         <UsScreen>
           {view === 'modules' && <ModulesScreen />}
           {view === 'trust' && <TrustScreen />}
           {view === 'calendar' && <CalendarScreen />}
           {view === 'lists' && <ListsScreen />}
+          {view === 'portraits' && <PortraitsScreen />}
+          {view === 'astrology' && <AstrologyScreen />}
         </UsScreen>
       );
     }
 
     // Me tab
-    if (['favorites', 'journal', 'profile', 'horoscope'].includes(view)) {
+    if (['favorites', 'journal', 'profile', 'horoscope', 'love-language'].includes(view)) {
       return (
         <MeScreen>
           {view === 'favorites' && <FavoritesScreen />}
           {view === 'journal' && <JournalScreen />}
           {view === 'horoscope' && <HoroscopeScreen />}
+          {view === 'love-language' && <LoveLanguageScreen />}
         </MeScreen>
       );
     }
@@ -106,6 +92,17 @@ function AppContent() {
       <BottomNav />
     </div>
   );
+}
+
+function AppContent() {
+  const { user, profile, pair, loading } = useAuth();
+
+  if (loading) return <LoadingScreen />;
+  if (!user) return <AuthScreen />;
+  if (!profile?.onboarding_complete) return <OnboardingScreen />;
+  if (!pair) return <PairingScreen />;
+
+  return <MainApp />;
 }
 
 function App() {

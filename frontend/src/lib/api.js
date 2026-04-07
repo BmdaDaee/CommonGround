@@ -111,4 +111,23 @@ export const api = {
   // Chat messages (P2P)
   getChatMessages: (limit) => apiClient.get('/chat/messages', { params: { limit } }),
   sendChatMessage: (text, mediaData, mediaType) => apiClient.post('/chat/send', { text, media_data: mediaData, media_type: mediaType }),
+
+  // Love Language Quiz
+  getLoveLanguageQuiz: () => apiClient.get('/love-language/quiz'),
+  submitLoveLanguage: (answers) => apiClient.post('/love-language/submit', { answers }),
+  getLoveLanguageResults: () => apiClient.get('/love-language/results'),
+
+  // Enhanced Astrology
+  astrologyDeepDive: (birthDate, birthTime, birthLocation, partnerBirthDate, partnerBirthTime) => apiClient.post('/astrology/deep-dive', { birth_date: birthDate, birth_time: birthTime, birth_location: birthLocation, partner_birth_date: partnerBirthDate, partner_birth_time: partnerBirthTime }),
+
+  // Partner Sync
+  getPartnerAnswer: () => apiClient.get('/daily-question/partner'),
+
+  // Push Notifications
+  pushSubscribe: (endpoint, keys) => apiClient.post('/push/subscribe', { endpoint, keys }),
+  pushUnsubscribe: () => apiClient.delete('/push/subscribe'),
+  getPushStatus: () => apiClient.get('/push/status'),
+
+  // Notifications (In-App)
+  getNotifications: () => apiClient.get('/notifications'),
 };
