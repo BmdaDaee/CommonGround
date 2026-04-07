@@ -1,142 +1,86 @@
 # CommonGround - Full Relationship Platform PRD
 
 ## Original Problem Statement
-Build the CommonGround relationship app from user's repo. A shared emotional space for couples featuring daily sparks, shared lists, astrology, trust-building exercises, AI chat, and intimate exploration. Supabase auth, BentlyAI (OpenAI via Emergent LLM Key).
+Build the CommonGround relationship app — a shared emotional space for couples featuring daily sparks, shared lists, astrology, trust-building exercises, AI chat, intimacy exploration, and personalized date planning. Supabase auth, BentlyAI (OpenAI via Emergent LLM Key).
 
 ## Architecture
 
 ### Tech Stack
-- **Frontend**: React 18, Tailwind-style inline CSS, Shadcn/UI base components
-- **Backend**: FastAPI (Python), Motor (async MongoDB driver)
+- **Frontend**: React 18, inline CSS theming (Pastel Pulse / Gemstone Pulse)
+- **Backend**: FastAPI (Python), Motor (async MongoDB)
 - **Database**: MongoDB
 - **Auth**: Supabase Auth (email/password)
 - **AI**: OpenAI GPT-4o (text) + GPT Image 1 (images) via Emergent LLM Key
 
-### Code Structure
-```
-/app/
-├── backend/
-│   ├── .env
-│   ├── requirements.txt
-│   └── server.py (~1400 lines, all endpoints)
-├── frontend/
-│   ├── .env
-│   ├── public/sw.js (Service Worker)
-│   └── src/
-│       ├── App.js (Auth → Onboarding → Pairing → MainApp routing)
-│       ├── context/ (AuthContext.js, AppContext.js)
-│       ├── lib/ (api.js, supabase.js, theme.js, notifications.js)
-│       └── components/
-│           ├── AuthScreen.js, OnboardingScreen.js, PairingScreen.js
-│           ├── HomeScreen.js (daily Q, streak, notifications, 8 quick actions)
-│           ├── ChatScreen.js (BentlyAI + media attachments)
-│           ├── PartnerChatScreen.js (P2P messaging)
-│           ├── DeeplyUsScreen.js (locked intimate mode)
-│           ├── LoveLanguageScreen.js (15-Q quiz + results)
-│           ├── PortraitsScreen.js (AI image gen + download/share)
-│           ├── AstrologyScreen.js (birth chart + compatibility)
-│           ├── AvatarScreen.js (AI personal avatar)
-│           ├── SharedPlaylistScreen.js (shared music)
-│           ├── MilestonesScreen.js (relationship timeline)
-│           ├── WeeklyReportScreen.js (AI weekly check-in)
-│           ├── ProfileScreen.js (settings, notifications, sign out)
-│           ├── NotificationSettings.js
-│           ├── HoroscopeScreen.js, TrustScreen.js, ModulesScreen.js
-│           ├── CalendarScreen.js, ListsScreen.js, JournalScreen.js
-│           ├── FavoritesScreen.js, ToolsScreen.js
-│           ├── BottomNav.js (5 tabs), SubNav.js (Us: 8, Me: 6)
-│           └── ui/ (Shadcn components)
-```
+### App Flow
+Auth → Onboarding (4 steps) → Pairing (create/join) → Main App
 
-## All Implemented Features
+### Navigation
+- **Bottom Nav**: Today | Chat | Us | Me | DeeplyUs
+- **Us Sub-Nav** (8): Pathways, Trust, Calendar, Lists, Portraits, Astrology, Playlist, Timeline
+- **Me Sub-Nav** (6): Favorites, Journal, Stars, Love Language, Avatar, Profile
+- **Home Quick Actions** (9): Horoscope, Partner Chat, Love Language, Our Playlist, Portraits, Timeline, Astrology, Weekly Report, Date Night
+
+## ALL Implemented Features
 
 ### Auth & Onboarding
-- Supabase email/password auth
-- 4-step onboarding: name, zodiac, partner zodiac, birth date
-- Pair creation/joining with codes
+- Supabase email/password auth with sign-up/sign-in toggle
+- 4-step onboarding: display name → zodiac → partner zodiac → birth date
+- Pair creation/joining with 6-char codes
 
 ### Home Screen
-- Personalized greeting
-- Daily question with submit/view
-- Partner answer sync (both must answer to reveal)
-- Streak tracker (current, best, total)
-- In-app notifications
-- 8 quick action tiles
+- Personalized greeting, daily question, partner sync (both must answer)
+- Streak tracker (current/best/total), notification banner
+- 9 quick action tiles to all features
 
 ### BentlyAI Chat
-- Mode toggle: CommonGround / DeeplyUs
-- Vibe selector: Soft / Real Talk / Savage
-- Image attachment support
-- Love language personalization
-- Pattern detection
+- CommonGround/DeeplyUs mode toggle, Soft/RealTalk/Savage vibe
+- Image attachments, love language personalization, pattern detection
 
-### Partner-to-Partner Chat (P1)
-- Real-time messaging with 5s polling
-- Sender name + timestamps
-- Media attachment support
+### Partner-to-Partner Chat
+- Real-time messaging with 5s polling, sender names, timestamps
 
 ### Love Language Quiz
-- 15-question A/B format, 5 languages
-- Score breakdown with bar chart
-- Partner comparison
+- 15-question A/B quiz, 5 languages, bar chart results, partner comparison
 - Personalizes all BentlyAI advice
 
 ### Couple Portraits
-- GPT Image 1 via Emergent LLM Key
-- 6 art styles
-- Gallery + download/share
+- GPT Image 1 generation, 6 art styles, gallery, download/share
 
 ### AI Avatar
-- Individual avatar generation per partner
-- 6 styles: Anime, Watercolor, Pixel Art, Cartoon, Realistic, Chibi
-- Stored in profile
+- Individual avatar per partner, 6 styles, stored in profile
 
 ### Astrology Deep-Dive
-- Full birth chart: Sun, Moon, Rising
-- Element, Modality, Personality, Love Style
-- Compatibility score + strengths/challenges
-- Weekly forecast + advice
+- Birth chart (Sun/Moon/Rising), compatibility score, weekly forecast
 
 ### Shared Playlist
-- Add songs with title, artist, link, notes
-- See who added each song
-- Delete songs
+- Add songs (title/artist/link/notes), shared between partners, CRUD
 
 ### Relationship Milestones
-- Timeline view with colored dots
-- 5 categories: Firsts, Anniversaries, Trips, Milestones, Other
-- Date-ordered with descriptions
+- Timeline with 5 categories, date-ordered, add/delete
 
 ### Weekly Report
-- AI-generated relationship check-in
-- Stats: questions answered together, messages exchanged
-- Personalized suggestions
+- AI-generated check-in with stats + personalized suggestions
+
+### Date Night Generator
+- Mood (5), Budget (4), Location (3) selectors
+- AI-personalized date idea with steps, playlist, food, conversation starter
+- History of past generated dates
+- Personalized based on zodiac, love language, shared playlist, favorites
 
 ### DeeplyUs Locked Mode
-- Gemstone Pulse dark theme
-- Unlock gate with consent
+- Gemstone Pulse dark theme, unlock gate with consent
 - Prompts, Exercises, My Space (items CRUD), Ignite
 
 ### Push Notifications
-- Service Worker + Browser Notification API
-- In-app polling
-- Toggle in Profile
+- Service Worker, in-app polling, toggle in Profile
 
 ### Other Features
-- Growth Pathways (7-14 day modules)
-- Trust Building exercises
-- Shared Calendar
-- Shopping/Wishlist with AI suggestions
-- Favorites (Music, Games, Movies)
-- Private Journal with AI analysis
-- Daily Horoscope
-
-## Navigation Structure
-- **Bottom Nav**: Today | Chat | Us | Me | DeeplyUs
-- **Us Sub-Nav**: Pathways, Trust, Calendar, Lists, Portraits, Astrology, Playlist, Timeline
-- **Me Sub-Nav**: Favorites, Journal, Stars, Love Language, Avatar, Profile
+- Growth Pathways, Trust Building, Calendar, Lists, Favorites, Journal, Horoscope
+- Profile screen with settings + sign out
 
 ## MongoDB Collections
-users, sessions, daily_questions, horoscopes, calendar_events, list_items, journal_entries, module_progress, portraits, pairs, chat_messages, deeply_items, partner_messages, shared_playlists, milestones
+users, sessions, daily_questions, horoscopes, calendar_events, list_items, journal_entries, module_progress, portraits, pairs, chat_messages, deeply_items, partner_messages, shared_playlists, milestones, date_nights
 
-## Status: ALL P0/P1/P2 COMPLETE
+## Status: ALL FEATURES COMPLETE
+All P0/P1/P2 + Date Night Generator implemented and tested (100% pass rate across 5 test iterations).
