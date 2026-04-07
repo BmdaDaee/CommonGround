@@ -14,6 +14,8 @@ export default function UsScreen({ children }) {
     { key: 'lists', label: 'Lists', icon: '📝' },
     { key: 'portraits', label: 'Portraits', icon: '🎨' },
     { key: 'astrology', label: 'Astrology', icon: '🌙' },
+    { key: 'playlist', label: 'Playlist', icon: '🎵' },
+    { key: 'milestones', label: 'Timeline', icon: '📌' },
   ];
 
   return (
@@ -79,6 +81,7 @@ export function MeScreen({ children }) {
     { key: 'journal', label: 'Journal', icon: '📝' },
     { key: 'horoscope', label: 'Stars', icon: '✨' },
     { key: 'love-language', label: 'Love Language', icon: '💕' },
+    { key: 'avatar', label: 'Avatar', icon: '🎭' },
     { key: 'profile', label: 'Profile', icon: '👤' },
   ];
 

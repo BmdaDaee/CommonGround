@@ -1199,6 +1199,274 @@ async def get_notifications(current_user: dict = Depends(get_current_user)):
     
     return {"notifications": notifs}
 
+# === P2P Partner Messaging ===
+
+class PartnerMessageRequest(BaseModel):
+    text: str
+    media_data: Optional[str] = None
+    media_type: Optional[str] = None
+
+@api_router.get("/partner-chat/messages")
+async def get_partner_messages(limit: int = 50, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
+    if not pair_id:
+        return {"messages": []}
+    
+    cursor = db.partner_messages.find({"pair_id": pair_id}, {"_id": 0}).sort("created_at", -1).limit(limit)
+    messages = await cursor.to_list(length=limit)
+    messages.reverse()
+    return {"messages": messages}
+
+@api_router.post("/partner-chat/send")
+async def send_partner_message(data: PartnerMessageRequest, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
+    if not pair_id:
+        raise HTTPException(status_code=400, detail="Not paired")
+    
+    msg = {
+        "id": str(uuid.uuid4()),
+        "pair_id": pair_id,
+        "sender_uid": current_user["uid"],
+        "sender_name": user_doc.get("display_name", "You"),
+        "text": data.text,
+        "media_data": data.media_data,
+        "media_type": data.media_type,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.partner_messages.insert_one(msg)
+    if "_id" in msg:
+        del msg["_id"]
+    return {"message": msg}
+
+# === Streak Tracker ===
+
+@api_router.get("/streak")
+async def get_streak(current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
+    if not pair_id:
+        return {"current_streak": 0, "longest_streak": 0, "dates": []}
+    
+    pair = await db.pairs.find_one({"id": pair_id})
+    partner_uid = pair["member_b_uid"] if pair["member_a_uid"] == current_user["uid"] else pair.get("member_a_uid")
+    
+    # Get all daily questions for this pair, sorted by date desc
+    cursor = db.daily_questions.find({"pair_id": pair_id}, {"_id": 0}).sort("date", -1).limit(60)
+    questions = await cursor.to_list(length=60)
+    
+    streak = 0
+    longest = 0
+    dates = []
+    today = date.today()
+    
+    for q in questions:
+        answers = q.get("answers", {})
+        both_answered = current_user["uid"] in answers and (partner_uid in answers if partner_uid else False)
+        if both_answered:
+            dates.append(q["date"])
+    
+    # Calculate consecutive streak from today backwards
+    for i in range(60):
+        check_date = (today - __import__('datetime').timedelta(days=i)).isoformat()
+        if check_date in dates:
+            streak += 1
+        else:
+            break
+    
+    # Calculate longest streak
+    current_run = 0
+    sorted_dates = sorted(dates, reverse=True)
+    for i, d in enumerate(sorted_dates):
+        if i == 0:
+            current_run = 1
+        else:
+            prev = datetime.fromisoformat(sorted_dates[i-1]).date()
+            curr = datetime.fromisoformat(d).date()
+            diff = (prev - curr).days
+            if diff == 1:
+                current_run += 1
+            else:
+                longest = max(longest, current_run)
+                current_run = 1
+    longest = max(longest, current_run, streak)
+    
+    return {"current_streak": streak, "longest_streak": longest, "total_days": len(dates)}
+
+# === Shared Music/Playlists ===
+
+class PlaylistItemRequest(BaseModel):
+    title: str
+    artist: Optional[str] = None
+    url: Optional[str] = None
+    notes: Optional[str] = None
+
+@api_router.get("/shared-playlist")
+async def get_shared_playlist(current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
+    if not pair_id:
+        return {"songs": []}
+    
+    cursor = db.shared_playlists.find({"pair_id": pair_id}, {"_id": 0}).sort("created_at", -1)
+    songs = await cursor.to_list(length=200)
+    return {"songs": songs}
+
+@api_router.post("/shared-playlist")
+async def add_to_shared_playlist(data: PlaylistItemRequest, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
+    if not pair_id:
+        raise HTTPException(status_code=400, detail="Not paired")
+    
+    song = {
+        "id": str(uuid.uuid4()),
+        "pair_id": pair_id,
+        "added_by": current_user["uid"],
+        "added_by_name": user_doc.get("display_name", "Partner"),
+        "title": data.title,
+        "artist": data.artist,
+        "url": data.url,
+        "notes": data.notes,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.shared_playlists.insert_one(song)
+    if "_id" in song:
+        del song["_id"]
+    return {"song": song}
+
+@api_router.delete("/shared-playlist/{song_id}")
+async def remove_from_shared_playlist(song_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.shared_playlists.delete_one({"id": song_id})
+    return {"deleted": result.deleted_count > 0}
+
+# === AI Avatar Generation ===
+
+class AvatarRequest(BaseModel):
+    description: str
+    style: str = "anime"
+
+@api_router.get("/avatar")
+async def get_avatar(current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]}, {"_id": 0, "avatar": 1, "avatar_description": 1, "avatar_style": 1})
+    return {"avatar": user_doc.get("avatar"), "description": user_doc.get("avatar_description"), "style": user_doc.get("avatar_style")}
+
+@api_router.post("/avatar/generate")
+async def generate_avatar(data: AvatarRequest, current_user: dict = Depends(get_current_user)):
+    prompt = f"A single-person avatar portrait in {data.style} art style. {data.description}. Clean background, centered composition, friendly expression, shoulder-up portrait."
+    
+    image_data = await generate_ai_image(prompt)
+    
+    await db.users.update_one(
+        {"supabase_uid": current_user["uid"]},
+        {"$set": {"avatar": image_data, "avatar_description": data.description, "avatar_style": data.style}}
+    )
+    
+    return {"avatar": image_data, "description": data.description, "style": data.style}
+
+# === Relationship Milestones ===
+
+class MilestoneRequest(BaseModel):
+    title: str
+    date: str
+    description: Optional[str] = None
+    category: str = "custom"
+
+@api_router.get("/milestones")
+async def get_milestones(current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
+    if not pair_id:
+        return {"milestones": []}
+    
+    cursor = db.milestones.find({"pair_id": pair_id}, {"_id": 0}).sort("date", 1)
+    milestones = await cursor.to_list(length=100)
+    return {"milestones": milestones}
+
+@api_router.post("/milestones")
+async def create_milestone(data: MilestoneRequest, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
+    if not pair_id:
+        raise HTTPException(status_code=400, detail="Not paired")
+    
+    milestone = {
+        "id": str(uuid.uuid4()),
+        "pair_id": pair_id,
+        "created_by": current_user["uid"],
+        "title": data.title,
+        "date": data.date,
+        "description": data.description,
+        "category": data.category,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.milestones.insert_one(milestone)
+    if "_id" in milestone:
+        del milestone["_id"]
+    return {"milestone": milestone}
+
+@api_router.delete("/milestones/{milestone_id}")
+async def delete_milestone(milestone_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.milestones.delete_one({"id": milestone_id})
+    return {"deleted": result.deleted_count > 0}
+
+# === Weekly Relationship Report ===
+
+@api_router.get("/weekly-report")
+async def get_weekly_report(current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
+    
+    # Gather weekly data
+    today = date.today()
+    week_start = (today - __import__('datetime').timedelta(days=7)).isoformat()
+    
+    # Count daily questions answered together
+    cursor = db.daily_questions.find({"pair_id": pair_id, "date": {"$gte": week_start}}, {"_id": 0})
+    questions = await cursor.to_list(length=7)
+    questions_answered = sum(1 for q in questions if len(q.get("answers", {})) >= 2)
+    
+    # Count partner messages
+    msg_count = await db.partner_messages.count_documents({"pair_id": pair_id, "created_at": {"$gte": week_start}})
+    
+    # Get love language info
+    love_lang = user_doc.get("love_languages", {})
+    primary_ll = max(love_lang.items(), key=lambda x: x[1])[0] if love_lang else None
+    
+    # Generate AI weekly report
+    context = f"""This couple has been together and using CommonGround.
+This week stats:
+- Daily questions both answered: {questions_answered}/7
+- Messages exchanged: {msg_count}
+- Primary love language: {primary_ll or 'not set'}
+- Zodiac: {user_doc.get('zodiac_sign', 'unknown')} + {user_doc.get('partner_zodiac', 'unknown')}"""
+
+    report_text = await generate_ai_text(
+        f"Generate a warm, concise weekly relationship check-in report based on: {context}. Include: 1) Activity summary (2 sentences), 2) Relationship health insight (2 sentences), 3) One specific suggestion for next week. Keep it personal and encouraging.",
+        f"weekly-report-{current_user['uid']}",
+        "You are BentlyAI, a caring relationship coach. Be warm, specific, and actionable. No generic platitudes."
+    )
+    
+    return {
+        "report": report_text,
+        "stats": {
+            "questions_answered": questions_answered,
+            "messages_sent": msg_count,
+            "week_start": week_start,
+            "week_end": today.isoformat(),
+        }
+    }
+
+# === Portrait Sharing Helper ===
+
+@api_router.get("/portraits/{portrait_id}/share")
+async def get_shareable_portrait(portrait_id: str, current_user: dict = Depends(get_current_user)):
+    portrait = await db.portraits.find_one({"id": portrait_id}, {"_id": 0})
+    if not portrait:
+        raise HTTPException(status_code=404, detail="Portrait not found")
+    return {"portrait": portrait}
+
 app.include_router(api_router)
 
 app.add_middleware(

@@ -151,10 +151,29 @@ export default function PortraitsScreen() {
             <div style={{
               padding: theme.spacing[3],
               background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : theme.colors.bg.surface,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
               <p style={{ fontSize: theme.typography.size.xs, color: t.text.muted, margin: 0 }}>
                 "{selectedPortrait.prompt}" — {selectedPortrait.style}
               </p>
+              <button
+                data-testid="share-portrait-btn"
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = `data:image/png;base64,${selectedPortrait.image_data}`;
+                  link.download = `commonground-portrait-${selectedPortrait.id || 'art'}.png`;
+                  link.click();
+                }}
+                style={{
+                  padding: `${theme.spacing[1]} ${theme.spacing[3]}`, borderRadius: theme.radius.round,
+                  border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+                  background: 'transparent', color: t.accent.primary,
+                  fontSize: theme.typography.size.xs, fontWeight: theme.typography.weight.semibold,
+                  cursor: 'pointer', whiteSpace: 'nowrap',
+                }}
+              >
+                Download
+              </button>
             </div>
           </div>
         )}

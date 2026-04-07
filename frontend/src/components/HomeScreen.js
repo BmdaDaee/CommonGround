@@ -12,12 +12,14 @@ export default function HomeScreen() {
   const [submitted, setSubmitted] = useState(false);
   const [partnerData, setPartnerData] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [streak, setStreak] = useState(null);
   const [loading, setLoading] = useState(true);
   const t = getThemeColors(mode);
 
   useEffect(() => {
     loadDailyQuestion();
     loadNotifications();
+    loadStreak();
   }, []);
 
   useEffect(() => {
@@ -54,6 +56,15 @@ export default function HomeScreen() {
       setNotifications(data.notifications || []);
     } catch (err) {
       console.error('Failed to load notifications:', err);
+    }
+  };
+
+  const loadStreak = async () => {
+    try {
+      const { data } = await api.getStreak();
+      setStreak(data);
+    } catch (err) {
+      console.error('Failed to load streak:', err);
     }
   };
 
@@ -105,6 +116,44 @@ export default function HomeScreen() {
             Powered by BentlyAI
           </p>
         </div>
+
+        {/* Streak Tracker */}
+        {streak && (streak.current_streak > 0 || streak.total_days > 0) && (
+          <div data-testid="streak-tracker" style={{
+            display: 'flex', alignItems: 'center', gap: theme.spacing[3],
+            padding: theme.spacing[3], borderRadius: theme.radius.lg, marginBottom: theme.spacing[4],
+            background: mode === 'deeplyus' ? 'rgba(255,255,255,0.06)' : theme.colors.bg.surface,
+            boxShadow: mode === 'deeplyus' ? theme.shadow.deep.soft : theme.shadow.card,
+          }}>
+            <div style={{
+              width: '44px', height: '44px', borderRadius: theme.radius.round, display: 'flex',
+              alignItems: 'center', justifyContent: 'center', fontSize: '22px',
+              background: streak.current_streak > 0
+                ? `linear-gradient(135deg, #FF6F8F, #FF8FAF)`
+                : (mode === 'deeplyus' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'),
+            }}>
+              {streak.current_streak > 0 ? '🔥' : '💤'}
+            </div>
+            <div style={{ flex: 1 }}>
+              <span style={{
+                fontSize: theme.typography.size.lg, fontWeight: theme.typography.weight.bold, color: t.text.primary,
+              }}>
+                {streak.current_streak} day streak
+              </span>
+              <span style={{ fontSize: theme.typography.size.xs, color: t.text.muted, display: 'block' }}>
+                Best: {streak.longest_streak} days · {streak.total_days} total
+              </span>
+            </div>
+            <button onClick={() => setView('weekly-report')} style={{
+              padding: `${theme.spacing[1]} ${theme.spacing[3]}`, borderRadius: theme.radius.round,
+              border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+              background: 'transparent', color: t.text.secondary, fontSize: theme.typography.size.xs,
+              cursor: 'pointer',
+            }}>
+              Report
+            </button>
+          </div>
+        )}
 
         {/* Daily Question Card */}
         <div data-testid="daily-question-card" style={{
@@ -288,11 +337,13 @@ export default function HomeScreen() {
           gap: theme.spacing[3],
         }}>
           <QuickAction icon="✨" label="Horoscope" description="Your daily stars" onClick={() => setView('horoscope')} mode={mode} />
-          <QuickAction icon="💜" label="Trust" description="Build together" onClick={() => setView('trust')} mode={mode} />
+          <QuickAction icon="💬" label="Partner Chat" description="Message them" onClick={() => setView('partner-chat')} mode={mode} />
           <QuickAction icon="💕" label="Love Language" description="Know your style" onClick={() => setView('love-language')} mode={mode} />
-          <QuickAction icon="💬" label="Chat" description="Talk to BentlyAI" onClick={() => setView('chat')} mode={mode} />
+          <QuickAction icon="🎵" label="Our Playlist" description="Shared music" onClick={() => setView('playlist')} mode={mode} />
           <QuickAction icon="🎨" label="Portraits" description="AI couple art" onClick={() => setView('portraits')} mode={mode} />
+          <QuickAction icon="📌" label="Timeline" description="Our milestones" onClick={() => setView('milestones')} mode={mode} />
           <QuickAction icon="🌙" label="Astrology" description="Cosmic blueprint" onClick={() => setView('astrology')} mode={mode} />
+          <QuickAction icon="📊" label="Weekly Report" description="Relationship pulse" onClick={() => setView('weekly-report')} mode={mode} />
         </div>
       </div>
     </div>

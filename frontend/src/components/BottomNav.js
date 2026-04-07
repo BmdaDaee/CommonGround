@@ -18,8 +18,8 @@ export default function BottomNav() {
   const getActiveTab = () => {
     if (['home', 'horoscope'].includes(view)) return 'home';
     if (['chat', 'tools'].includes(view)) return 'chat';
-    if (['modules', 'trust', 'calendar', 'lists', 'portraits', 'astrology'].includes(view)) return 'us';
-    if (['favorites', 'journal', 'profile', 'horoscope', 'love-language'].includes(view)) return 'me';
+    if (['modules', 'trust', 'calendar', 'lists', 'portraits', 'astrology', 'playlist', 'milestones'].includes(view)) return 'us';
+    if (['favorites', 'journal', 'profile', 'horoscope', 'love-language', 'avatar'].includes(view)) return 'me';
     if (view === 'deeply') return 'deeply';
     return view;
   };

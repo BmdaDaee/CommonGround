@@ -130,4 +130,31 @@ export const api = {
 
   // Notifications (In-App)
   getNotifications: () => apiClient.get('/notifications'),
+
+  // Partner-to-Partner Chat
+  getPartnerMessages: (limit) => apiClient.get('/partner-chat/messages', { params: { limit } }),
+  sendPartnerMessage: (text, mediaData, mediaType) => apiClient.post('/partner-chat/send', { text, media_data: mediaData, media_type: mediaType }),
+
+  // Streak
+  getStreak: () => apiClient.get('/streak'),
+
+  // Shared Playlist
+  getSharedPlaylist: () => apiClient.get('/shared-playlist'),
+  addToSharedPlaylist: (title, artist, url, notes) => apiClient.post('/shared-playlist', { title, artist, url, notes }),
+  removeFromSharedPlaylist: (songId) => apiClient.delete(`/shared-playlist/${songId}`),
+
+  // Avatar
+  getAvatar: () => apiClient.get('/avatar'),
+  generateAvatar: (description, style) => apiClient.post('/avatar/generate', { description, style }),
+
+  // Milestones
+  getMilestones: () => apiClient.get('/milestones'),
+  createMilestone: (title, date, description, category) => apiClient.post('/milestones', { title, date, description, category }),
+  deleteMilestone: (milestoneId) => apiClient.delete(`/milestones/${milestoneId}`),
+
+  // Weekly Report
+  getWeeklyReport: () => apiClient.get('/weekly-report'),
+
+  // Portrait sharing
+  getShareablePortrait: (portraitId) => apiClient.get(`/portraits/${portraitId}/share`),
 };
