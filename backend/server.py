@@ -1261,7 +1261,39 @@ async def send_partner_message(data: PartnerMessageRequest, current_user: dict =
     await db.partner_messages.insert_one(msg)
     if "_id" in msg:
         del msg["_id"]
-    return {"message": msg}
+    
+    bently_reply = None
+    if "@bently" in data.text.lower():
+        # BentlyAI participates in partner chat when mentioned
+        recent_msgs = await db.partner_messages.find({"pair_id": pair_id}, {"_id": 0, "text": 1, "sender_name": 1}).sort("created_at", -1).limit(8).to_list(8)
+        recent_msgs.reverse()
+        chat_context = "\n".join([f"{m.get('sender_name','?')}: {m.get('text','')}" for m in recent_msgs])
+        
+        love_lang = user_doc.get("love_languages", {})
+        ll_context = ""
+        if love_lang:
+            primary = max(love_lang.items(), key=lambda x: x[1])[0]
+            ll_context = f" Their primary love language is {LOVE_LANGUAGE_LABELS.get(primary, primary)}."
+        
+        bently_text = await generate_ai_text(
+            f"Recent couple chat:\n{chat_context}\n\nThey mentioned you. Give a brief, helpful insight or playful comment. 1-2 sentences max.{ll_context}",
+            f"partner-bently-{pair_id}",
+            "You are BentlyAI, a witty relationship coach participating in a couple's chat. Be brief, warm, and insightful. Never preachy."
+        )
+        bently_msg = {
+            "id": str(uuid.uuid4()),
+            "pair_id": pair_id,
+            "sender_uid": "bently-ai",
+            "sender_name": "BentlyAI",
+            "text": bently_text,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.partner_messages.insert_one(bently_msg)
+        if "_id" in bently_msg:
+            del bently_msg["_id"]
+        bently_reply = bently_msg
+    
+    return {"message": msg, "bently_reply": bently_reply}
 
 # === Streak Tracker ===
 

@@ -121,7 +121,7 @@ export default function WeeklyReportScreen() {
 
           <button data-testid="refresh-report-btn" onClick={loadReport} style={{
             width: '100%', padding: theme.spacing[3], borderRadius: theme.radius.md, marginTop: theme.spacing[3],
-            border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+            border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : '#1F1F1F'}`,
             background: 'transparent', color: t.text.secondary, fontSize: theme.typography.size.sm, cursor: 'pointer',
           }}>
             Refresh Report

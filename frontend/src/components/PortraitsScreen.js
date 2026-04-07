@@ -89,7 +89,7 @@ export default function PortraitsScreen() {
             rows={3}
             style={{
               width: '100%', padding: theme.spacing[3], borderRadius: theme.radius.md,
-              border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+              border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : '#1F1F1F'}`,
               background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
               color: t.text.primary, fontSize: theme.typography.size.sm, resize: 'none', outline: 'none',
               fontFamily: theme.typography.fontFamily.primary, boxSizing: 'border-box',
@@ -127,7 +127,7 @@ export default function PortraitsScreen() {
             disabled={generating || !prompt.trim()}
             style={{
               width: '100%', padding: theme.spacing[3], borderRadius: theme.radius.md, border: 'none',
-              background: generating || !prompt.trim() ? (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : t.accent.primary,
+              background: generating || !prompt.trim() ? (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : '#1F1F1F') : t.accent.primary,
               color: generating || !prompt.trim() ? t.text.muted : '#FFFFFF',
               fontSize: theme.typography.size.md, fontWeight: theme.typography.weight.semibold,
               cursor: generating || !prompt.trim() ? 'not-allowed' : 'pointer',
@@ -166,7 +166,7 @@ export default function PortraitsScreen() {
                 }}
                 style={{
                   padding: `${theme.spacing[1]} ${theme.spacing[3]}`, borderRadius: theme.radius.round,
-                  border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+                  border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : '#1F1F1F'}`,
                   background: 'transparent', color: t.accent.primary,
                   fontSize: theme.typography.size.xs, fontWeight: theme.typography.weight.semibold,
                   cursor: 'pointer', whiteSpace: 'nowrap',

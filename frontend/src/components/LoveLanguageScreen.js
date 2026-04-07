@@ -145,7 +145,7 @@ export default function LoveLanguageScreen() {
                   </span>
                   <span style={{ fontSize: theme.typography.size.xs, color: t.text.muted }}>{score}/15</span>
                 </div>
-                <div style={{ height: '6px', borderRadius: theme.radius.round, background: mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}>
+                <div style={{ height: '6px', borderRadius: theme.radius.round, background: mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)' }}>
                   <div style={{
                     height: '100%', borderRadius: theme.radius.round,
                     width: `${maxScore > 0 ? (score / maxScore) * 100 : 0}%`,
@@ -171,7 +171,7 @@ export default function LoveLanguageScreen() {
 
           <button data-testid="retake-quiz-btn" onClick={handleRetake} style={{
             width: '100%', padding: theme.spacing[3], borderRadius: theme.radius.md,
-            border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+            border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : '#1F1F1F'}`,
             background: 'transparent', color: t.text.secondary, fontSize: theme.typography.size.sm, cursor: 'pointer',
           }}>
             Retake Quiz
@@ -197,7 +197,7 @@ export default function LoveLanguageScreen() {
         {questions.map((_, i) => (
           <div key={i} style={{
             flex: 1, height: '4px', borderRadius: theme.radius.round,
-            background: i <= currentQ ? t.accent.primary : (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'),
+            background: i <= currentQ ? t.accent.primary : (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)'),
             transition: `background ${theme.motion.duration.fast}`,
           }} />
         ))}
@@ -217,7 +217,7 @@ export default function LoveLanguageScreen() {
           disabled={submitting}
           style={{
             padding: theme.spacing[5], borderRadius: theme.radius.lg,
-            border: `2px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'}`,
+            border: `2px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.04)'}`,
             background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : theme.colors.bg.surface,
             color: t.text.primary, fontSize: theme.typography.size.md, textAlign: 'left',
             cursor: 'pointer', lineHeight: theme.typography.lineHeight.relaxed,
@@ -232,7 +232,7 @@ export default function LoveLanguageScreen() {
           disabled={submitting}
           style={{
             padding: theme.spacing[5], borderRadius: theme.radius.lg,
-            border: `2px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'}`,
+            border: `2px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.04)'}`,
             background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : theme.colors.bg.surface,
             color: t.text.primary, fontSize: theme.typography.size.md, textAlign: 'left',
             cursor: 'pointer', lineHeight: theme.typography.lineHeight.relaxed,

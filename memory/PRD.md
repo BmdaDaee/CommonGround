@@ -1,86 +1,51 @@
-# CommonGround - Full Relationship Platform PRD
+# CommonGround - Product Requirements Document
 
 ## Original Problem Statement
-Build the CommonGround relationship app — a shared emotional space for couples featuring daily sparks, shared lists, astrology, trust-building exercises, AI chat, intimacy exploration, and personalized date planning. Supabase auth, BentlyAI (OpenAI via Emergent LLM Key).
+Build a relationship app (CommonGround) — a shared emotional space for couples featuring daily sparks, shared lists, astrology, trust-building exercises, AI chat (BentlyAI), and a locked "DeeplyUs" X-rated intimacy mode. Tech: React + FastAPI + Supabase Auth + MongoDB. AI via Emergent LLM Key.
 
-## Architecture
+## User-Specified Design Direction
+- **Color Palette**: Black, Gold (#D4AF37), Metallic Iridescent Purple (#9D4EDD), Red (#E63946)
+- **Vibe**: Anime Vibes with HipHop Urban flows — luxury dark aesthetic
+- **Layout**: Card/module bento grid with AI generated avatars geared towards couple's gender and ethnicity
 
-### Tech Stack
-- **Frontend**: React 18, inline CSS theming (Pastel Pulse / Gemstone Pulse)
-- **Backend**: FastAPI (Python), Motor (async MongoDB)
-- **Database**: MongoDB
-- **Auth**: Supabase Auth (email/password)
-- **AI**: OpenAI GPT-4o (text) + GPT Image 1 (images) via Emergent LLM Key
+## App Flow
+Auth -> BasicSetup (name + birthday) -> Pairing (required) -> Onboarding (gender, partner gender, ethnicity, zodiac, partner zodiac) -> Main App
 
-### App Flow
-Auth → Onboarding (4 steps) → Pairing (create/join) → Main App
+## Implemented Features (All Tested & Passing)
+1. Supabase Auth (email/password sign-in/sign-up)
+2. BasicSetup screen (name + birthday) -> sets `basic_setup_complete`
+3. Pairing (create code / join code) -> required before onboarding
+4. Onboarding (gender, partner gender, ethnicity, zodiac, partner zodiac) -> sets `onboarding_complete`
+5. Gender & ethnicity stored in user profile, passed to AI portrait/avatar generation prompts
+6. Daily Spark questions with partner answer reveal
+7. BentlyAI Chat (multi-vibe: soft, realtalk, savage)
+8. BentlyAI as participant in partner chat via @bently mention
+9. Partner Chat with media attachments
+10. DeeplyUs locked mode (X-rated, sex-positive, no content filters)
+11. Love Language Quiz
+12. AI Portraits (couple portraits with gender/ethnicity context)
+13. AI Avatar generation (individual, with gender/ethnicity context)
+14. Astrology deep-dives & horoscope
+15. Date Night Generator
+16. Shared Playlist
+17. Milestones tracker
+18. Weekly Reports
+19. Push Notifications (Service Worker)
+20. Streak tracker
+21. Black/Gold/Purple/Red visual theme across all screens
 
-### Navigation
-- **Bottom Nav**: Today | Chat | Us | Me | DeeplyUs
-- **Us Sub-Nav** (8): Pathways, Trust, Calendar, Lists, Portraits, Astrology, Playlist, Timeline
-- **Me Sub-Nav** (6): Favorites, Journal, Stars, Love Language, Avatar, Profile
-- **Home Quick Actions** (9): Horoscope, Partner Chat, Love Language, Our Playlist, Portraits, Timeline, Astrology, Weekly Report, Date Night
+## Backend Key Models
+- `UserProfile`: id, supabase_uid, email, display_name, gender, partner_gender, ethnicity, zodiac_sign, partner_zodiac, birth_date, basic_setup_complete, onboarding_complete, deeply_unlocked, love_languages, push_subscription, favorites
+- `Pair`: id, code, member_a_uid, member_b_uid, status
+- Migration: existing users with onboarding_complete auto-get basic_setup_complete on session
 
-## ALL Implemented Features
+## Tech Stack
+- Frontend: React, Framer Motion, @phosphor-icons/react, react-fast-marquee
+- Backend: FastAPI, Motor (MongoDB async), Supabase Auth
+- AI: Emergent LLM Key (OpenAI text + image generation)
+- Fonts: Unbounded (headings), Manrope (body)
 
-### Auth & Onboarding
-- Supabase email/password auth with sign-up/sign-in toggle
-- 4-step onboarding: display name → zodiac → partner zodiac → birth date
-- Pair creation/joining with 6-char codes
-
-### Home Screen
-- Personalized greeting, daily question, partner sync (both must answer)
-- Streak tracker (current/best/total), notification banner
-- 9 quick action tiles to all features
-
-### BentlyAI Chat
-- CommonGround/DeeplyUs mode toggle, Soft/RealTalk/Savage vibe
-- Image attachments, love language personalization, pattern detection
-
-### Partner-to-Partner Chat
-- Real-time messaging with 5s polling, sender names, timestamps
-
-### Love Language Quiz
-- 15-question A/B quiz, 5 languages, bar chart results, partner comparison
-- Personalizes all BentlyAI advice
-
-### Couple Portraits
-- GPT Image 1 generation, 6 art styles, gallery, download/share
-
-### AI Avatar
-- Individual avatar per partner, 6 styles, stored in profile
-
-### Astrology Deep-Dive
-- Birth chart (Sun/Moon/Rising), compatibility score, weekly forecast
-
-### Shared Playlist
-- Add songs (title/artist/link/notes), shared between partners, CRUD
-
-### Relationship Milestones
-- Timeline with 5 categories, date-ordered, add/delete
-
-### Weekly Report
-- AI-generated check-in with stats + personalized suggestions
-
-### Date Night Generator
-- Mood (5), Budget (4), Location (3) selectors
-- AI-personalized date idea with steps, playlist, food, conversation starter
-- History of past generated dates
-- Personalized based on zodiac, love language, shared playlist, favorites
-
-### DeeplyUs Locked Mode
-- Gemstone Pulse dark theme, unlock gate with consent
-- Prompts, Exercises, My Space (items CRUD), Ignite
-
-### Push Notifications
-- Service Worker, in-app polling, toggle in Profile
-
-### Other Features
-- Growth Pathways, Trust Building, Calendar, Lists, Favorites, Journal, Horoscope
-- Profile screen with settings + sign out
-
-## MongoDB Collections
-users, sessions, daily_questions, horoscopes, calendar_events, list_items, journal_entries, module_progress, portraits, pairs, chat_messages, deeply_items, partner_messages, shared_playlists, milestones, date_nights
-
-## Status: ALL FEATURES COMPLETE
-All P0/P1/P2 + Date Night Generator implemented and tested (100% pass rate across 5 test iterations).
+## Backlog
+- P2: Shared playlist Spotify integration
+- P2: Advanced astrology compatibility scoring
+- P3: Push notification refinements

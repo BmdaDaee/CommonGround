@@ -265,7 +265,7 @@ export default function ModulesScreen() {
                         <span style={{
                           padding: `${theme.spacing[1]} ${theme.spacing[2]}`,
                           borderRadius: theme.radius.round,
-                          background: mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                          background: mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)',
                           fontSize: theme.typography.size.xs,
                           color: t.text.muted,
                         }}>

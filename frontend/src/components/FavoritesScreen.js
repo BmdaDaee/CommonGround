@@ -115,7 +115,7 @@ export default function FavoritesScreen() {
                 borderRadius: theme.radius.round,
                 border: activeCategory === cat.key 
                   ? `2px solid ${t.accent.primary}`
-                  : `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+                  : `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : '#1F1F1F'}`,
                 background: activeCategory === cat.key
                   ? (mode === 'deeplyus' ? 'rgba(255,143,175,0.2)' : 'rgba(255,111,174,0.1)')
                   : 'transparent',
@@ -131,7 +131,7 @@ export default function FavoritesScreen() {
               <span style={{
                 padding: `2px ${theme.spacing[2]}`,
                 borderRadius: theme.radius.round,
-                background: mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                background: mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)',
                 fontSize: theme.typography.size.xs,
               }}>
                 {favorites[cat.key]?.length || 0}
@@ -157,7 +157,7 @@ export default function FavoritesScreen() {
               flex: 1,
               padding: theme.spacing[4],
               borderRadius: theme.radius.lg,
-              border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+              border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : '#1F1F1F'}`,
               background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : theme.colors.bg.surface,
               color: t.text.primary,
               fontSize: theme.typography.size.md,
@@ -172,7 +172,7 @@ export default function FavoritesScreen() {
               padding: `${theme.spacing[3]} ${theme.spacing[5]}`,
               borderRadius: theme.radius.lg,
               border: 'none',
-              background: !newItem.trim() ? 'rgba(0,0,0,0.1)' : t.accent.primary,
+              background: !newItem.trim() ? '#1F1F1F' : t.accent.primary,
               color: !newItem.trim() ? t.text.muted : '#FFFFFF',
               fontSize: theme.typography.size.md,
               fontWeight: theme.typography.weight.semibold,

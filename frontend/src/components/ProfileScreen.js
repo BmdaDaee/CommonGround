@@ -129,7 +129,7 @@ export default function ProfileScreen() {
           onClick={signOut}
           style={{
             width: '100%', padding: theme.spacing[3], borderRadius: theme.radius.md,
-            border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+            border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : '#1F1F1F'}`,
             background: 'transparent', color: '#EF4444', fontSize: theme.typography.size.sm,
             fontWeight: theme.typography.weight.semibold, cursor: 'pointer',
           }}

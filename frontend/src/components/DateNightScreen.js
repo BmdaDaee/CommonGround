@@ -65,7 +65,7 @@ export default function DateNightScreen() {
     borderRadius: theme.radius.round,
     border: selected
       ? `2px solid ${t.accent.primary}`
-      : `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'}`,
+      : `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.04)'}`,
     background: selected
       ? (mode === 'deeplyus' ? 'rgba(255,143,175,0.15)' : 'rgba(255,111,174,0.08)')
       : 'transparent',
@@ -98,7 +98,7 @@ export default function DateNightScreen() {
               onClick={() => setShowHistory(!showHistory)}
               style={{
                 padding: `${theme.spacing[2]} ${theme.spacing[3]}`, borderRadius: theme.radius.round,
-                border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+                border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : '#1F1F1F'}`,
                 background: 'transparent', color: t.text.secondary, fontSize: theme.typography.size.xs, cursor: 'pointer',
               }}
             >
@@ -159,7 +159,7 @@ export default function DateNightScreen() {
               style={{
                 width: '100%', padding: theme.spacing[4], borderRadius: theme.radius.lg, border: 'none',
                 background: generating
-                  ? (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)')
+                  ? (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : '#1F1F1F')
                   : `linear-gradient(135deg, ${t.accent.primary}, ${t.accent.secondary || t.accent.primary})`,
                 color: generating ? t.text.muted : '#FFFFFF',
                 fontSize: theme.typography.size.lg, fontWeight: theme.typography.weight.bold,

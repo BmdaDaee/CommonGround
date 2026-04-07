@@ -91,7 +91,7 @@ export default function AvatarScreen() {
           width: '200px', height: '200px', borderRadius: theme.radius.round, margin: `0 auto ${theme.spacing[5]}`,
           background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          border: `2px dashed ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+          border: `2px dashed ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : '#1F1F1F'}`,
         }}>
           <span style={{ fontSize: theme.typography.size.sm, color: t.text.muted }}>No avatar yet</span>
         </div>
@@ -114,7 +114,7 @@ export default function AvatarScreen() {
           rows={3}
           style={{
             width: '100%', padding: theme.spacing[3], borderRadius: theme.radius.md,
-            border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+            border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : '#1F1F1F'}`,
             background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
             color: t.text.primary, fontSize: theme.typography.size.sm, resize: 'none', outline: 'none',
             fontFamily: theme.typography.fontFamily.primary, boxSizing: 'border-box',
@@ -149,7 +149,7 @@ export default function AvatarScreen() {
           disabled={generating || !description.trim()}
           style={{
             width: '100%', padding: theme.spacing[3], borderRadius: theme.radius.md, border: 'none',
-            background: generating || !description.trim() ? (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : t.accent.primary,
+            background: generating || !description.trim() ? (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : '#1F1F1F') : t.accent.primary,
             color: generating || !description.trim() ? t.text.muted : '#FFFFFF',
             fontSize: theme.typography.size.md, fontWeight: theme.typography.weight.semibold,
             cursor: generating || !description.trim() ? 'not-allowed' : 'pointer',

@@ -78,7 +78,7 @@ export default function AstrologyScreen() {
                 <label style={{ fontSize: theme.typography.size.xs, color: t.text.muted, display: 'block', marginBottom: theme.spacing[1] }}>Birth Date *</label>
                 <input data-testid="astro-birth-date" type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} style={{
                   width: '100%', padding: theme.spacing[3], borderRadius: theme.radius.md,
-                  border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+                  border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : '#1F1F1F'}`,
                   background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
                   color: t.text.primary, fontSize: theme.typography.size.sm, outline: 'none', boxSizing: 'border-box',
                 }} />
@@ -87,7 +87,7 @@ export default function AstrologyScreen() {
                 <label style={{ fontSize: theme.typography.size.xs, color: t.text.muted, display: 'block', marginBottom: theme.spacing[1] }}>Birth Time (optional)</label>
                 <input data-testid="astro-birth-time" type="time" value={birthTime} onChange={(e) => setBirthTime(e.target.value)} style={{
                   width: '100%', padding: theme.spacing[3], borderRadius: theme.radius.md,
-                  border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+                  border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : '#1F1F1F'}`,
                   background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
                   color: t.text.primary, fontSize: theme.typography.size.sm, outline: 'none', boxSizing: 'border-box',
                 }} />
@@ -96,7 +96,7 @@ export default function AstrologyScreen() {
                 <label style={{ fontSize: theme.typography.size.xs, color: t.text.muted, display: 'block', marginBottom: theme.spacing[1] }}>Birth Location (optional)</label>
                 <input data-testid="astro-birth-location" type="text" value={birthLocation} onChange={(e) => setBirthLocation(e.target.value)} placeholder="City, Country" style={{
                   width: '100%', padding: theme.spacing[3], borderRadius: theme.radius.md,
-                  border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+                  border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : '#1F1F1F'}`,
                   background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
                   color: t.text.primary, fontSize: theme.typography.size.sm, outline: 'none', boxSizing: 'border-box',
                   fontFamily: theme.typography.fontFamily.primary,
@@ -104,7 +104,7 @@ export default function AstrologyScreen() {
               </div>
               <button data-testid="generate-astrology-btn" onClick={handleGenerate} disabled={!birthDate || generating} style={{
                 padding: theme.spacing[3], borderRadius: theme.radius.md, border: 'none',
-                background: !birthDate || generating ? (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : t.accent.primary,
+                background: !birthDate || generating ? (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : '#1F1F1F') : t.accent.primary,
                 color: !birthDate || generating ? t.text.muted : '#FFFFFF',
                 fontSize: theme.typography.size.md, fontWeight: theme.typography.weight.semibold, cursor: !birthDate || generating ? 'not-allowed' : 'pointer',
               }}>
@@ -213,7 +213,7 @@ export default function AstrologyScreen() {
 
             <button data-testid="regenerate-astrology-btn" onClick={() => { setAstroData(null); }} style={{
               width: '100%', padding: theme.spacing[3], borderRadius: theme.radius.md,
-              border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+              border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : '#1F1F1F'}`,
               background: 'transparent', color: t.text.secondary, fontSize: theme.typography.size.sm, cursor: 'pointer',
             }}>
               Regenerate with different details

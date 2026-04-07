@@ -10,7 +10,7 @@ function ModeToggle({ mode, onToggle }) {
   return (
     <div style={{
       display: 'flex',
-      background: mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+      background: mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)',
       borderRadius: theme.radius.round,
       padding: '4px',
     }}>
@@ -72,7 +72,7 @@ function VibeDial({ vibe, onSelect, mode }) {
             borderRadius: theme.radius.round,
             border: vibe === v.key 
               ? `2px solid ${t.accent.primary}` 
-              : `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+              : `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : '#1F1F1F'}`,
             background: vibe === v.key 
               ? (mode === 'deeplyus' ? 'rgba(255,143,175,0.2)' : 'rgba(255,111,174,0.1)') 
               : 'transparent',
@@ -170,7 +170,7 @@ function ChatBubble({ message, isOwn, mode }) {
         padding: theme.spacing[3],
         borderRadius: theme.radius.lg,
         background: isSystem 
-          ? (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)')
+          ? (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)')
           : isOwn 
             ? (mode === 'deeplyus' 
                 ? `linear-gradient(135deg, ${theme.colors.deep.gradient.start}, ${theme.colors.deep.gradient.end})`
@@ -332,7 +332,7 @@ export default function ChatScreen() {
       {/* Header */}
       <div style={{
         padding: theme.spacing[4],
-        borderBottom: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
+        borderBottom: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)'}`,
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[3] }}>
           <h1 style={{
@@ -441,7 +441,7 @@ export default function ChatScreen() {
       {/* Input */}
       <div style={{
         padding: theme.spacing[4],
-        borderTop: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
+        borderTop: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)'}`,
         background: mode === 'deeplyus' ? theme.colors.deep.bg.secondary : theme.colors.bg.surface,
       }}>
         {/* Media preview */}
@@ -480,7 +480,7 @@ export default function ChatScreen() {
             style={{
               padding: theme.spacing[3],
               borderRadius: theme.radius.lg,
-              border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+              border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : '#1F1F1F'}`,
               background: 'transparent',
               color: t.text.muted,
               fontSize: theme.typography.size.lg,
@@ -502,7 +502,7 @@ export default function ChatScreen() {
               flex: 1,
               padding: theme.spacing[3],
               borderRadius: theme.radius.lg,
-              border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+              border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : '#1F1F1F'}`,
               background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
               color: t.text.primary,
               fontSize: theme.typography.size.md,
@@ -520,7 +520,7 @@ export default function ChatScreen() {
               borderRadius: theme.radius.lg,
               border: 'none',
               background: loading || (!inputText.trim() && !mediaData)
-                ? (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)')
+                ? (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : '#1F1F1F')
                 : t.accent.primary,
               color: loading || (!inputText.trim() && !mediaData) ? t.text.muted : '#FFFFFF',
               fontSize: theme.typography.size.md,

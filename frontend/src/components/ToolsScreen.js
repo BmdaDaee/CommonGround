@@ -32,7 +32,7 @@ function VibeDial({ vibe, onSelect, mode }) {
             borderRadius: theme.radius.round,
             border: vibe === v.key 
               ? `2px solid ${t.accent.primary}` 
-              : `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+              : `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : '#1F1F1F'}`,
             background: vibe === v.key 
               ? (mode === 'deeplyus' ? 'rgba(255,143,175,0.2)' : 'rgba(255,111,174,0.1)') 
               : 'transparent',
@@ -138,7 +138,7 @@ export default function ToolsScreen() {
               width: '100%',
               padding: theme.spacing[4],
               borderRadius: theme.radius.lg,
-              border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+              border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : '#1F1F1F'}`,
               background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : theme.colors.bg.surface,
               color: t.text.primary,
               fontSize: theme.typography.size.md,
@@ -168,7 +168,7 @@ export default function ToolsScreen() {
                 borderRadius: theme.radius.lg,
                 border: selectedTool === tool.key 
                   ? `2px solid ${t.accent.primary}`
-                  : `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+                  : `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : '#1F1F1F'}`,
                 background: selectedTool === tool.key
                   ? (mode === 'deeplyus' ? 'rgba(255,143,175,0.1)' : 'rgba(255,111,174,0.1)')
                   : (mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : theme.colors.bg.surface),

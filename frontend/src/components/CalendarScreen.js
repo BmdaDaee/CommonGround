@@ -116,7 +116,7 @@ export default function CalendarScreen() {
                 width: '100%',
                 padding: theme.spacing[3],
                 borderRadius: theme.radius.md,
-                border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+                border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : '#1F1F1F'}`,
                 background: 'transparent',
                 color: t.text.primary,
                 marginBottom: theme.spacing[3],
@@ -133,7 +133,7 @@ export default function CalendarScreen() {
                   flex: 1,
                   padding: theme.spacing[3],
                   borderRadius: theme.radius.md,
-                  border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+                  border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : '#1F1F1F'}`,
                   background: 'transparent',
                   color: t.text.primary,
                 }}
@@ -146,7 +146,7 @@ export default function CalendarScreen() {
                   flex: 1,
                   padding: theme.spacing[3],
                   borderRadius: theme.radius.md,
-                  border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+                  border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : '#1F1F1F'}`,
                   background: 'transparent',
                   color: t.text.primary,
                 }}

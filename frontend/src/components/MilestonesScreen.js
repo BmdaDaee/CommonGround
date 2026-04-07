@@ -57,7 +57,7 @@ export default function MilestonesScreen() {
 
   const inputStyle = {
     width: '100%', padding: theme.spacing[3], borderRadius: theme.radius.md,
-    border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+    border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : '#1F1F1F'}`,
     background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
     color: t.text.primary, fontSize: theme.typography.size.sm, outline: 'none', boxSizing: 'border-box',
     fontFamily: theme.typography.fontFamily.primary,
@@ -97,7 +97,7 @@ export default function MilestonesScreen() {
               {CATEGORIES.map(cat => (
                 <button key={cat.key} onClick={() => setCategory(cat.key)} style={{
                   padding: `${theme.spacing[1]} ${theme.spacing[3]}`, borderRadius: theme.radius.round,
-                  border: category === cat.key ? `2px solid ${cat.color}` : `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'}`,
+                  border: category === cat.key ? `2px solid ${cat.color}` : `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.04)'}`,
                   background: category === cat.key ? `${cat.color}20` : 'transparent',
                   color: category === cat.key ? cat.color : t.text.secondary,
                   fontSize: theme.typography.size.xs, fontWeight: theme.typography.weight.semibold, cursor: 'pointer',
@@ -108,7 +108,7 @@ export default function MilestonesScreen() {
             </div>
             <button data-testid="add-milestone-submit-btn" onClick={handleAdd} disabled={!title.trim() || !date} style={{
               padding: theme.spacing[3], borderRadius: theme.radius.md, border: 'none',
-              background: title.trim() && date ? t.accent.primary : (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
+              background: title.trim() && date ? t.accent.primary : (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : '#1F1F1F'),
               color: title.trim() && date ? '#FFFFFF' : t.text.muted,
               fontSize: theme.typography.size.md, fontWeight: theme.typography.weight.semibold,
               cursor: title.trim() && date ? 'pointer' : 'not-allowed',
@@ -127,7 +127,7 @@ export default function MilestonesScreen() {
         {milestones.length > 0 && (
           <div style={{
             position: 'absolute', left: '8px', top: 0, bottom: 0, width: '2px',
-            background: mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+            background: mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)',
           }} />
         )}
 

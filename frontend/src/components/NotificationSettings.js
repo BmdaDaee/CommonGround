@@ -112,7 +112,7 @@ export default function NotificationSettings() {
             padding: `${theme.spacing[2]} ${theme.spacing[4]}`,
             borderRadius: theme.radius.round,
             border: 'none',
-            background: enabled ? t.accent.primary : (mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'),
+            background: enabled ? t.accent.primary : (mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.04)'),
             color: enabled ? '#FFFFFF' : t.text.secondary,
             fontSize: theme.typography.size.sm,
             fontWeight: theme.typography.weight.semibold,

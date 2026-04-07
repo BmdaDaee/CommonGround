@@ -242,7 +242,7 @@ export default function TrustScreen() {
                 borderRadius: theme.radius.lg,
                 border: selectedExercise?.id === exercise.id 
                   ? `2px solid ${t.accent.primary}`
-                  : `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
+                  : `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)'}`,
                 background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : theme.colors.bg.surface,
                 textAlign: 'left',
                 cursor: 'pointer',

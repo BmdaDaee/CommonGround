@@ -46,6 +46,9 @@ export default function PartnerChatScreen() {
     try {
       const { data } = await api.sendPartnerMessage(text);
       setMessages(prev => [...prev, data.message]);
+      if (data.bently_reply) {
+        setMessages(prev => [...prev, data.bently_reply]);
+      }
       scrollToBottom();
     } catch (err) {
       console.error('Send failed:', err);
@@ -66,7 +69,7 @@ export default function PartnerChatScreen() {
     }}>
       <div style={{
         padding: theme.spacing[4],
-        borderBottom: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
+        borderBottom: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)'}`,
       }}>
         <h1 style={{ fontSize: theme.typography.size.xl, fontWeight: theme.typography.weight.bold, color: t.text.primary, margin: 0 }}>
           Partner Chat
@@ -83,20 +86,24 @@ export default function PartnerChatScreen() {
         )}
         {messages.map((msg) => {
           const isOwn = msg.sender_uid === user?.id;
+          const isBently = msg.sender_uid === 'bently-ai';
           return (
             <div key={msg.id} style={{
-              display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start',
+              display: 'flex', justifyContent: isBently ? 'center' : (isOwn ? 'flex-end' : 'flex-start'),
               marginBottom: theme.spacing[2],
             }}>
               <div style={{
-                maxWidth: '75%', padding: theme.spacing[3], borderRadius: theme.radius.lg,
-                background: isOwn
-                  ? (mode === 'deeplyus' ? `linear-gradient(135deg, ${theme.colors.deep.gradient.start}, ${theme.colors.deep.gradient.end})` : t.accent.primary)
-                  : (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : theme.colors.bg.secondary),
-                color: isOwn ? '#FFFFFF' : t.text.primary,
+                maxWidth: isBently ? '85%' : '75%', padding: theme.spacing[3], borderRadius: theme.radius.lg,
+                background: isBently
+                  ? 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(157,78,221,0.1))'
+                  : isOwn
+                    ? (mode === 'deeplyus' ? `linear-gradient(135deg, ${theme.colors.deep.gradient.start}, ${theme.colors.deep.gradient.end})` : t.accent.primary)
+                    : (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : theme.colors.bg.secondary),
+                color: '#FFFFFF',
+                border: isBently ? '1px solid rgba(212,175,55,0.2)' : 'none',
               }}>
-                {!isOwn && (
-                  <span style={{ fontSize: theme.typography.size.xs, fontWeight: theme.typography.weight.bold, color: t.accent.primary, display: 'block', marginBottom: '2px' }}>
+                {(isBently || !isOwn) && (
+                  <span style={{ fontSize: theme.typography.size.xs, fontWeight: 700, color: isBently ? '#D4AF37' : t.accent.primary, display: 'block', marginBottom: '2px' }}>
                     {msg.sender_name}
                   </span>
                 )}
@@ -119,7 +126,7 @@ export default function PartnerChatScreen() {
 
       <div style={{
         padding: theme.spacing[4],
-        borderTop: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
+        borderTop: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.03)'}`,
         background: mode === 'deeplyus' ? theme.colors.deep.bg.secondary : theme.colors.bg.surface,
       }}>
         <div style={{ display: 'flex', gap: theme.spacing[2] }}>
@@ -128,12 +135,12 @@ export default function PartnerChatScreen() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Message your partner..."
+            placeholder="Message... (type @bently for AI insight)"
             rows={1}
             style={{
               flex: 1, padding: theme.spacing[3], borderRadius: theme.radius.lg,
-              border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
-              background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
+              border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : '#1F1F1F'}`,
+              background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.04)',
               color: t.text.primary, fontSize: theme.typography.size.md, resize: 'none', outline: 'none',
               fontFamily: theme.typography.fontFamily.primary,
             }}
@@ -144,7 +151,7 @@ export default function PartnerChatScreen() {
             disabled={sending || !input.trim()}
             style={{
               padding: `${theme.spacing[3]} ${theme.spacing[5]}`, borderRadius: theme.radius.lg, border: 'none',
-              background: sending || !input.trim() ? (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)') : t.accent.primary,
+              background: sending || !input.trim() ? (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : '#1F1F1F') : t.accent.primary,
               color: sending || !input.trim() ? t.text.muted : '#FFFFFF',
               fontSize: theme.typography.size.md, fontWeight: theme.typography.weight.semibold,
               cursor: sending || !input.trim() ? 'not-allowed' : 'pointer',

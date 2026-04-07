@@ -49,7 +49,7 @@ export default function SharedPlaylistScreen() {
 
   const inputStyle = {
     width: '100%', padding: theme.spacing[3], borderRadius: theme.radius.md,
-    border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+    border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.15)' : '#1F1F1F'}`,
     background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : '#FFFFFF',
     color: t.text.primary, fontSize: theme.typography.size.sm, outline: 'none', boxSizing: 'border-box',
     fontFamily: theme.typography.fontFamily.primary,
@@ -91,7 +91,7 @@ export default function SharedPlaylistScreen() {
             <input type="text" placeholder="Why this song? (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} style={inputStyle} />
             <button data-testid="add-song-submit-btn" onClick={handleAdd} disabled={!title.trim()} style={{
               padding: theme.spacing[3], borderRadius: theme.radius.md, border: 'none',
-              background: title.trim() ? t.accent.primary : (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'),
+              background: title.trim() ? t.accent.primary : (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : '#1F1F1F'),
               color: title.trim() ? '#FFFFFF' : t.text.muted, fontSize: theme.typography.size.md,
               fontWeight: theme.typography.weight.semibold, cursor: title.trim() ? 'pointer' : 'not-allowed',
             }}>
