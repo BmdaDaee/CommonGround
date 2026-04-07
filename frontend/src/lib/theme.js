@@ -1,140 +1,78 @@
-// CommonGround Theme - Pastel Pulse + Gemstone Pulse
+// CommonGround Theme — Electric Neon / Anime x Hip-Hop Urban
 export const theme = {
-  // === SHARED SPACE (CommonGround) - Pastel Pulse ===
   colors: {
     bg: {
-      primary: '#FFF4EC',
-      secondary: '#FDE7EF',
-      surface: '#FFFFFF',
-      depth: '#6E4A7E',
+      primary: '#050505',
+      secondary: '#121212',
+      surface: 'rgba(0,0,0,0.6)',
+      depth: '#1A1A1A',
+      glass: 'rgba(255,255,255,0.04)',
     },
     accent: {
-      primary: '#FF6FAE',
-      secondary: '#C9A7FF',
-      highlight: '#A8F5D5',
+      primary: '#FF3333',
+      secondary: '#FFE600',
+      highlight: '#00FF88',
     },
     gradient: {
-      emotional: {
-        start: '#FFB7D5',
-        end: '#C7B7FF',
-      },
+      emotional: { start: '#FF3333', end: '#FFE600' },
+      neon: { start: '#FF3333', end: '#FF0066' },
     },
     text: {
-      primary: '#1A1A1A',
-      secondary: '#4A4A4A',
-      muted: '#7A7A7A',
-      accent: '#FF6FAE',
+      primary: '#FFFFFF',
+      secondary: '#8A8A93',
+      muted: '#555560',
+      accent: '#FF3333',
     },
-    // === INTIMATE SPACE (DeeplyUs) - Gemstone Pulse ===
+    border: '#222222',
+    // DeeplyUs — crimson infrared
     deep: {
-      bg: {
-        primary: '#2A1B3D',
-        secondary: '#3B1E5A',
-        surface: '#0D0A0F',
-      },
-      accent: {
-        primary: '#FF8FAF',
-        secondary: '#4A6CFF',
-        highlight: '#F5C76B',
-      },
-      gradient: {
-        start: '#3B1E5A',
-        end: '#FF6F8F',
-      },
-      text: {
-        primary: '#FFFFFF',
-        secondary: '#D9D9D9',
-        muted: '#A1A1A1',
-        accent: '#FF8FAF',
-      },
-    },
-    // AXM Brand
-    axm: {
-      black: '#040403',
-      red: '#E2130D',
-      violet: '#6F42C1',
-      platinum: '#EDEDED',
+      bg: { primary: '#1A0000', secondary: '#2A0505', surface: 'rgba(40,0,0,0.6)' },
+      accent: { primary: '#FF3333', secondary: '#8B0000', highlight: '#FFE600' },
+      gradient: { start: '#8B0000', end: '#FF3333' },
+      text: { primary: '#FFFFFF', secondary: '#D9A0A0', muted: '#8A5555', accent: '#FF3333' },
     },
   },
-  
-  // === TYPOGRAPHY ===
+
   typography: {
     fontFamily: {
-      primary: "'Source Sans 3', 'Segoe UI', sans-serif",
-      expressive: "'Source Sans 3', 'Segoe UI', sans-serif",
+      primary: "'Manrope', sans-serif",
+      heading: "'Unbounded', 'Manrope', sans-serif",
     },
     size: {
-      xs: '12px',
-      sm: '14px',
-      md: '16px',
-      lg: '20px',
-      xl: '24px',
-      display: '32px',
-      hero: '40px',
+      xs: '11px', sm: '13px', md: '15px', lg: '18px',
+      xl: '22px', display: '32px', hero: '48px', mega: '64px',
     },
-    lineHeight: {
-      tight: 1.1,
-      normal: 1.3,
-      relaxed: 1.5,
-    },
-    weight: {
-      regular: 400,
-      medium: 500,
-      semibold: 600,
-      bold: 700,
-    },
+    lineHeight: { tight: 1.0, normal: 1.25, relaxed: 1.5 },
+    weight: { regular: 400, medium: 500, semibold: 600, bold: 700, black: 900 },
   },
-  
-  // === SPACING ===
+
   spacing: {
-    0: '0',
-    1: '4px',
-    2: '8px',
-    3: '12px',
-    4: '16px',
-    5: '20px',
-    6: '24px',
-    8: '32px',
-    10: '40px',
-    12: '48px',
-    16: '64px',
+    0: '0', 1: '4px', 2: '8px', 3: '12px', 4: '16px',
+    5: '20px', 6: '24px', 8: '32px', 10: '40px', 12: '48px', 16: '64px',
   },
-  
-  // === RADIUS ===
+
   radius: {
-    sm: '8px',
-    md: '12px',
-    lg: '16px',
-    xl: '24px',
-    round: '999px',
+    none: '0px', sm: '4px', md: '8px', lg: '12px', xl: '16px', round: '999px',
   },
-  
-  // === SHADOWS ===
+
   shadow: {
-    soft: '0 2px 6px rgba(0,0,0,0.08)',
-    medium: '0 4px 12px rgba(0,0,0,0.12)',
-    card: '0 6px 20px rgba(0,0,0,0.10)',
+    soft: '0 2px 8px rgba(0,0,0,0.4)',
+    medium: '0 4px 16px rgba(0,0,0,0.5)',
+    card: '0 8px 32px rgba(0,0,0,0.6)',
+    brutalist: '4px 4px 0px #FF3333',
+    neonGlow: '0 0 20px rgba(255,51,51,0.4), 0 0 60px rgba(255,51,51,0.15)',
     deep: {
-      soft: '0 2px 6px rgba(0,0,0,0.25)',
-      glow: '0 0 12px rgba(255,143,175,0.35)',
+      soft: '0 4px 16px rgba(139,0,0,0.3)',
+      glow: '0 0 24px rgba(255,51,51,0.5)',
     },
   },
-  
-  // === MOTION ===
+
   motion: {
-    duration: {
-      fast: '120ms',
-      normal: '180ms',
-      slow: '250ms',
-    },
-    easing: {
-      default: 'cubic-bezier(0.4, 0.0, 0.2, 1)',
-      emotional: 'cubic-bezier(0.25, 1, 0.5, 1)',
-    },
+    duration: { fast: '100ms', normal: '200ms', slow: '350ms' },
+    easing: { default: 'cubic-bezier(0.4,0,0.2,1)', bounce: 'cubic-bezier(0.34,1.56,0.64,1)' },
   },
 };
 
-// Helper to get deep theme colors
 export const getThemeColors = (mode) => {
   if (mode === 'deeplyus') {
     return {

@@ -1,138 +1,85 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { useApp } from '../context/AppContext';
-import theme, { getThemeColors } from '../lib/theme';
+import theme from '../lib/theme';
 
-// Sub-navigation for Us tab
+function SubNavBar({ tabs }) {
+  const { view, setView } = useApp();
+
+  return (
+    <div style={{
+      position: 'sticky', top: 0, zIndex: 50,
+      background: 'rgba(5,5,5,0.85)',
+      backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+      borderBottom: '1px solid #222',
+      padding: `${theme.spacing[3]} ${theme.spacing[4]}`,
+      overflowX: 'auto',
+      display: 'flex', gap: theme.spacing[2],
+      scrollbarWidth: 'none',
+    }}>
+      {tabs.map((tab) => {
+        const isActive = view === tab.key;
+        return (
+          <button
+            key={tab.key}
+            data-testid={`subnav-${tab.key}`}
+            onClick={() => setView(tab.key)}
+            style={{
+              padding: `${theme.spacing[1]} ${theme.spacing[3]}`,
+              borderRadius: theme.radius.none,
+              border: isActive ? '1px solid #FF3333' : '1px solid #333',
+              background: isActive ? 'rgba(255,51,51,0.12)' : 'transparent',
+              color: isActive ? '#FF3333' : '#8A8A93',
+              fontSize: theme.typography.size.xs,
+              fontWeight: 700,
+              fontFamily: theme.typography.fontFamily.heading,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: `all ${theme.motion.duration.fast}`,
+            }}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function UsScreen({ children }) {
-  const { view, setView, mode } = useApp();
-  const t = getThemeColors(mode);
-
-  const subTabs = [
-    { key: 'modules', label: 'Pathways', icon: '✨' },
-    { key: 'trust', label: 'Trust', icon: '💜' },
-    { key: 'calendar', label: 'Calendar', icon: '📅' },
-    { key: 'lists', label: 'Lists', icon: '📝' },
-    { key: 'portraits', label: 'Portraits', icon: '🎨' },
-    { key: 'astrology', label: 'Astrology', icon: '🌙' },
-    { key: 'playlist', label: 'Playlist', icon: '🎵' },
-    { key: 'milestones', label: 'Timeline', icon: '📌' },
+  const tabs = [
+    { key: 'modules', label: 'PATHWAYS' },
+    { key: 'trust', label: 'TRUST' },
+    { key: 'calendar', label: 'CALENDAR' },
+    { key: 'lists', label: 'LISTS' },
+    { key: 'portraits', label: 'PORTRAITS' },
+    { key: 'astrology', label: 'ASTROLOGY' },
+    { key: 'playlist', label: 'PLAYLIST' },
+    { key: 'milestones', label: 'TIMELINE' },
   ];
 
   return (
-    <div>
-      {/* Sub-navigation */}
-      <div style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        background: mode === 'deeplyus' ? theme.colors.deep.bg.primary : theme.colors.bg.primary,
-        padding: `${theme.spacing[3]} ${theme.spacing[4]}`,
-        borderBottom: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
-      }}>
-        <div style={{
-          display: 'flex',
-          gap: theme.spacing[2],
-          overflowX: 'auto',
-          maxWidth: '600px',
-          margin: '0 auto',
-        }}>
-          {subTabs.map(tab => (
-            <button
-              key={tab.key}
-              data-testid={`us-tab-${tab.key}`}
-              onClick={() => setView(tab.key)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing[2],
-                padding: `${theme.spacing[2]} ${theme.spacing[3]}`,
-                borderRadius: theme.radius.round,
-                border: view === tab.key 
-                  ? `2px solid ${t.accent.primary}` 
-                  : `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
-                background: view === tab.key
-                  ? (mode === 'deeplyus' ? 'rgba(255,143,175,0.2)' : 'rgba(255,111,174,0.1)')
-                  : 'transparent',
-                color: view === tab.key ? t.accent.primary : t.text.secondary,
-                fontSize: theme.typography.size.sm,
-                fontWeight: theme.typography.weight.medium,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+    <div style={{ minHeight: '100vh', background: '#050505' }}>
+      <SubNavBar tabs={tabs} />
       {children}
     </div>
   );
 }
 
-// Sub-navigation for Me tab
 export function MeScreen({ children }) {
-  const { view, setView, mode } = useApp();
-  const t = getThemeColors(mode);
-
-  const subTabs = [
-    { key: 'favorites', label: 'Favorites', icon: '❤️' },
-    { key: 'journal', label: 'Journal', icon: '📝' },
-    { key: 'horoscope', label: 'Stars', icon: '✨' },
-    { key: 'love-language', label: 'Love Language', icon: '💕' },
-    { key: 'avatar', label: 'Avatar', icon: '🎭' },
-    { key: 'profile', label: 'Profile', icon: '👤' },
+  const tabs = [
+    { key: 'favorites', label: 'FAVORITES' },
+    { key: 'journal', label: 'JOURNAL' },
+    { key: 'horoscope', label: 'STARS' },
+    { key: 'love-language', label: 'LOVE LANG' },
+    { key: 'avatar', label: 'AVATAR' },
+    { key: 'profile', label: 'PROFILE' },
   ];
 
   return (
-    <div>
-      {/* Sub-navigation */}
-      <div style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        background: mode === 'deeplyus' ? theme.colors.deep.bg.primary : theme.colors.bg.primary,
-        padding: `${theme.spacing[3]} ${theme.spacing[4]}`,
-        borderBottom: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
-      }}>
-        <div style={{
-          display: 'flex',
-          gap: theme.spacing[2],
-          overflowX: 'auto',
-          maxWidth: '600px',
-          margin: '0 auto',
-        }}>
-          {subTabs.map(tab => (
-            <button
-              key={tab.key}
-              data-testid={`me-tab-${tab.key}`}
-              onClick={() => setView(tab.key)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: theme.spacing[2],
-                padding: `${theme.spacing[2]} ${theme.spacing[3]}`,
-                borderRadius: theme.radius.round,
-                border: view === tab.key 
-                  ? `2px solid ${t.accent.primary}` 
-                  : `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
-                background: view === tab.key
-                  ? (mode === 'deeplyus' ? 'rgba(255,143,175,0.2)' : 'rgba(255,111,174,0.1)')
-                  : 'transparent',
-                color: view === tab.key ? t.accent.primary : t.text.secondary,
-                fontSize: theme.typography.size.sm,
-                fontWeight: theme.typography.weight.medium,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+    <div style={{ minHeight: '100vh', background: '#050505' }}>
+      <SubNavBar tabs={tabs} />
       {children}
     </div>
   );

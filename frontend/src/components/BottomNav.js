@@ -1,80 +1,84 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import theme, { getThemeColors } from '../lib/theme';
+import { House, ChatCircle, UsersThree, User, LockKey } from '@phosphor-icons/react';
+import theme from '../lib/theme';
 
 const NAV_ITEMS = [
-  { key: 'home', label: 'Today', icon: '🏠' },
-  { key: 'chat', label: 'Chat', icon: '💬' },
-  { key: 'us', label: 'Us', icon: '💜' },
-  { key: 'me', label: 'Me', icon: '👤' },
-  { key: 'deeply', label: 'DeeplyUs', icon: '🔒' },
+  { key: 'home', label: 'TODAY', icon: House },
+  { key: 'chat', label: 'CHAT', icon: ChatCircle },
+  { key: 'us', label: 'US', icon: UsersThree },
+  { key: 'me', label: 'ME', icon: User },
+  { key: 'deeply', label: 'DEEPLY', icon: LockKey },
 ];
 
 export default function BottomNav() {
-  const { view, setView, mode } = useApp();
-  const t = getThemeColors(mode);
+  const { view, setView } = useApp();
 
-  // Determine which main tab is active
   const getActiveTab = () => {
-    if (['home', 'horoscope'].includes(view)) return 'home';
-    if (['chat', 'tools'].includes(view)) return 'chat';
     if (['modules', 'trust', 'calendar', 'lists', 'portraits', 'astrology', 'playlist', 'milestones'].includes(view)) return 'us';
     if (['favorites', 'journal', 'profile', 'horoscope', 'love-language', 'avatar'].includes(view)) return 'me';
     if (view === 'deeply') return 'deeply';
-    return view;
+    if (view === 'chat') return 'chat';
+    return 'home';
   };
 
-  const activeTab = getActiveTab();
+  const active = getActiveTab();
 
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      background: mode === 'deeplyus' 
-        ? theme.colors.deep.bg.surface 
-        : theme.colors.bg.surface,
-      borderTop: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
-      zIndex: 100,
+    <div data-testid="bottom-nav" style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 100,
+      background: 'rgba(5,5,5,0.92)',
+      backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+      borderTop: '1px solid #222',
+      padding: `${theme.spacing[2]} 0 env(safe-area-inset-bottom, ${theme.spacing[2]})`,
     }}>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-around',
-        maxWidth: '500px', 
-        margin: '0 auto',
-        padding: `${theme.spacing[2]} ${theme.spacing[4]}`,
+      <div style={{
+        display: 'flex', justifyContent: 'space-around', alignItems: 'center',
+        maxWidth: '480px', margin: '0 auto',
       }}>
-        {NAV_ITEMS.map((item) => (
-          <button
-            key={item.key}
-            data-testid={`nav-${item.key}`}
-            onClick={() => setView(item.key)}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              padding: `${theme.spacing[2]} ${theme.spacing[4]}`,
-              borderRadius: theme.radius.lg,
-              border: 'none',
-              background: activeTab === item.key 
-                ? (mode === 'deeplyus' ? 'rgba(255,143,175,0.2)' : 'rgba(255,111,174,0.1)')
-                : 'transparent',
-              color: activeTab === item.key ? t.accent.primary : t.text.muted,
-              cursor: 'pointer',
-              transition: `all ${theme.motion.duration.fast}`,
-              minWidth: '64px',
-            }}
-          >
-            <span style={{ fontSize: '20px', marginBottom: '2px' }}>{item.icon}</span>
-            <span style={{
-              fontSize: theme.typography.size.xs,
-              fontWeight: activeTab === item.key ? theme.typography.weight.semibold : theme.typography.weight.regular,
-            }}>
-              {item.label}
-            </span>
-          </button>
-        ))}
+        {NAV_ITEMS.map((item) => {
+          const isActive = active === item.key;
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.key}
+              data-testid={`nav-${item.key}`}
+              onClick={() => setView(item.key)}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                gap: '2px', padding: `${theme.spacing[2]} ${theme.spacing[3]}`,
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                position: 'relative',
+              }}
+            >
+              <Icon
+                size={22}
+                weight={isActive ? 'fill' : 'regular'}
+                color={isActive ? '#FF3333' : '#555560'}
+              />
+              <span style={{
+                fontSize: '9px',
+                fontWeight: 700,
+                letterSpacing: '0.12em',
+                fontFamily: theme.typography.fontFamily.heading,
+                color: isActive ? '#FF3333' : '#555560',
+                transition: `color ${theme.motion.duration.fast}`,
+              }}>
+                {item.label}
+              </span>
+              {/* Active indicator bar */}
+              {isActive && (
+                <div style={{
+                  position: 'absolute', bottom: '-2px',
+                  width: '20px', height: '2px',
+                  background: '#FF3333',
+                  borderRadius: '1px',
+                  boxShadow: '0 0 8px rgba(255,51,51,0.6)',
+                }} />
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
