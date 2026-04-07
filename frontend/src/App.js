@@ -18,6 +18,7 @@ import DeeplyUsScreen from './components/DeeplyUsScreen';
 import LoveLanguageScreen from './components/LoveLanguageScreen';
 import PortraitsScreen from './components/PortraitsScreen';
 import AstrologyScreen from './components/AstrologyScreen';
+import ProfileScreen from './components/ProfileScreen';
 import UsScreen, { MeScreen } from './components/SubNav';
 import BottomNav from './components/BottomNav';
 import './App.css';
@@ -79,6 +80,7 @@ function MainApp() {
           {view === 'journal' && <JournalScreen />}
           {view === 'horoscope' && <HoroscopeScreen />}
           {view === 'love-language' && <LoveLanguageScreen />}
+          {view === 'profile' && <ProfileScreen />}
         </MeScreen>
       );
     }

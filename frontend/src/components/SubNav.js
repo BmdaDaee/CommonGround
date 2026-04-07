@@ -79,6 +79,7 @@ export function MeScreen({ children }) {
     { key: 'journal', label: 'Journal', icon: '📝' },
     { key: 'horoscope', label: 'Stars', icon: '✨' },
     { key: 'love-language', label: 'Love Language', icon: '💕' },
+    { key: 'profile', label: 'Profile', icon: '👤' },
   ];
 
   return (

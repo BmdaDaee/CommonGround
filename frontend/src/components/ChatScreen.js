@@ -185,6 +185,16 @@ function ChatBubble({ message, isOwn, mode }) {
         lineHeight: theme.typography.lineHeight.relaxed,
         fontStyle: isSystem ? 'italic' : 'normal',
       }}>
+        {/* Media attachment preview */}
+        {message.media_data && (
+          <div style={{ marginBottom: message.text ? theme.spacing[2] : 0 }}>
+            <img
+              src={message.media_data.startsWith('data:') ? message.media_data : `data:image/png;base64,${message.media_data}`}
+              alt="Attachment"
+              style={{ maxWidth: '100%', borderRadius: theme.radius.md, display: 'block' }}
+            />
+          </div>
+        )}
         {message.text}
       </div>
     </div>
@@ -199,7 +209,10 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
   const [pinnedCallout, setPinnedCallout] = useState(null);
+  const [mediaPreview, setMediaPreview] = useState(null);
+  const [mediaData, setMediaData] = useState(null);
   const scrollRef = useRef(null);
+  const fileInputRef = useRef(null);
   const t = getThemeColors(mode);
 
   // Load messages on mount
@@ -218,20 +231,44 @@ export default function ChatScreen() {
     }, 100);
   }, []);
 
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+      return; // Only images for now
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setMediaPreview(ev.target.result);
+      setMediaData(ev.target.result.split(',')[1]); // base64 without prefix
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearMedia = () => {
+    setMediaPreview(null);
+    setMediaData(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSend = async () => {
-    if (!inputText.trim() || loading) return;
+    if ((!inputText.trim() && !mediaData) || loading) return;
     
     const text = inputText.trim();
     setInputText('');
     
-    // Add user message
+    // Add user message with possible media
     const userMsg = {
       id: `user-${Date.now()}`,
-      text,
+      text: text || (mediaData ? '(image)' : ''),
       message_type: 'user',
       isOwn: true,
+      media_data: mediaPreview,
     };
     setMessages(prev => [...prev, userMsg]);
+    clearMedia();
     scrollToBottom();
     
     setLoading(true);
@@ -407,7 +444,53 @@ export default function ChatScreen() {
         borderTop: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}`,
         background: mode === 'deeplyus' ? theme.colors.deep.bg.secondary : theme.colors.bg.surface,
       }}>
-        <div style={{ display: 'flex', gap: theme.spacing[3] }}>
+        {/* Media preview */}
+        {mediaPreview && (
+          <div data-testid="media-preview" style={{
+            marginBottom: theme.spacing[3], position: 'relative', display: 'inline-block',
+          }}>
+            <img src={mediaPreview} alt="Preview" style={{ height: '80px', borderRadius: theme.radius.md, display: 'block' }} />
+            <button
+              data-testid="remove-media-btn"
+              onClick={clearMedia}
+              style={{
+                position: 'absolute', top: '-6px', right: '-6px',
+                width: '20px', height: '20px', borderRadius: '50%',
+                background: '#EF4444', border: 'none', color: '#FFF',
+                fontSize: '12px', cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              x
+            </button>
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: theme.spacing[2], alignItems: 'flex-end' }}>
+          {/* Attach button */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+          />
+          <button
+            data-testid="attach-media-btn"
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              padding: theme.spacing[3],
+              borderRadius: theme.radius.lg,
+              border: `1px solid ${mode === 'deeplyus' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`,
+              background: 'transparent',
+              color: t.text.muted,
+              fontSize: theme.typography.size.lg,
+              cursor: 'pointer',
+              lineHeight: 1,
+            }}
+            title="Attach image"
+          >
+            +
+          </button>
           <textarea
             data-testid="chat-input"
             value={inputText}
@@ -431,18 +514,18 @@ export default function ChatScreen() {
           <button
             data-testid="send-btn"
             onClick={handleSend}
-            disabled={loading || !inputText.trim()}
+            disabled={loading || (!inputText.trim() && !mediaData)}
             style={{
               padding: `${theme.spacing[3]} ${theme.spacing[5]}`,
               borderRadius: theme.radius.lg,
               border: 'none',
-              background: loading || !inputText.trim() 
+              background: loading || (!inputText.trim() && !mediaData)
                 ? (mode === 'deeplyus' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)')
                 : t.accent.primary,
-              color: loading || !inputText.trim() ? t.text.muted : '#FFFFFF',
+              color: loading || (!inputText.trim() && !mediaData) ? t.text.muted : '#FFFFFF',
               fontSize: theme.typography.size.md,
               fontWeight: theme.typography.weight.semibold,
-              cursor: loading || !inputText.trim() ? 'not-allowed' : 'pointer',
+              cursor: loading || (!inputText.trim() && !mediaData) ? 'not-allowed' : 'pointer',
               transition: `all ${theme.motion.duration.fast}`,
             }}
           >
@@ -455,7 +538,7 @@ export default function ChatScreen() {
           fontSize: theme.typography.size.xs,
           color: t.text.muted,
         }}>
-          Enter sends • Shift+Enter for new line
+          Enter sends · Shift+Enter for new line · + to attach image
         </p>
       </div>
     </div>
