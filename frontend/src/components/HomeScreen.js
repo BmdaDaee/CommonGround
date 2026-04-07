@@ -5,7 +5,7 @@ import { api } from '../lib/api';
 import theme from '../lib/theme';
 import Marquee from 'react-fast-marquee';
 import { motion } from 'framer-motion';
-import { Star, ChatCircle, Heart, MusicNote, Palette, MapPin, Moon, ChartBar, Wine, Fire, PaperPlaneTilt } from '@phosphor-icons/react';
+import { Star, ChatCircle, Heart, MusicNote, Palette, MapPin, Moon, ChartBar, Wine, Fire, PaperPlaneTilt, Image } from '@phosphor-icons/react';
 
 export default function HomeScreen() {
   const { profile } = useAuth();
@@ -66,6 +66,7 @@ export default function HomeScreen() {
     { icon: Moon, label: 'ASTROLOGY', view: 'astrology', color: '#9D4EDD' },
     { icon: ChartBar, label: 'REPORT', view: 'weekly-report', color: '#D4AF37' },
     { icon: Wine, label: 'DATE NIGHT', view: 'date-night', color: '#E63946' },
+    { icon: Image, label: 'MOOD BOARD', view: 'mood-boards', color: '#9D4EDD' },
   ];
 
   return (

@@ -140,8 +140,10 @@ export const api = {
 
   // Shared Playlist
   getSharedPlaylist: () => apiClient.get('/shared-playlist'),
-  addToSharedPlaylist: (title, artist, url, notes) => apiClient.post('/shared-playlist', { title, artist, url, notes }),
+  addToSharedPlaylist: (title, artist, url, notes, platform) => apiClient.post('/shared-playlist', { title, artist, url, notes, platform }),
   removeFromSharedPlaylist: (songId) => apiClient.delete(`/shared-playlist/${songId}`),
+  getMoodBoards: () => apiClient.get('/mood-boards'),
+  generateMoodBoard: (theme, style) => apiClient.post('/mood-boards/generate', { theme, style }),
 
   // Avatar
   getAvatar: () => apiClient.get('/avatar'),

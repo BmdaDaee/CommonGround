@@ -26,6 +26,7 @@ import MilestonesScreen from './components/MilestonesScreen';
 import AvatarScreen from './components/AvatarScreen';
 import WeeklyReportScreen from './components/WeeklyReportScreen';
 import DateNightScreen from './components/DateNightScreen';
+import MoodBoardScreen from './components/MoodBoardScreen';
 import UsScreen, { MeScreen } from './components/SubNav';
 import BottomNav from './components/BottomNav';
 import './App.css';
@@ -63,6 +64,8 @@ function MainApp() {
     if (view === 'partner-chat') return <PartnerChatScreen />;
     if (view === 'weekly-report') return <WeeklyReportScreen />;
     if (view === 'date-night') return <DateNightScreen />;
+
+    if (view === 'mood-boards') return <MoodBoardScreen />;
 
     // Us tab
     if (['modules', 'trust', 'calendar', 'lists', 'portraits', 'astrology', 'playlist', 'milestones'].includes(view)) {

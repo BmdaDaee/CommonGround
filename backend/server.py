@@ -1351,10 +1351,25 @@ async def get_streak(current_user: dict = Depends(get_current_user)):
 
 # === Shared Music/Playlists ===
 
+def detect_music_platform(url):
+    if not url:
+        return None
+    url_lower = url.lower()
+    if "spotify.com" in url_lower or "open.spotify" in url_lower:
+        return "spotify"
+    if "youtube.com" in url_lower or "youtu.be" in url_lower or "music.youtube" in url_lower:
+        return "youtube"
+    if "music.apple.com" in url_lower:
+        return "apple"
+    if "soundcloud.com" in url_lower:
+        return "soundcloud"
+    return "other"
+
 class PlaylistItemRequest(BaseModel):
     title: str
     artist: Optional[str] = None
     url: Optional[str] = None
+    platform: Optional[str] = None
     notes: Optional[str] = None
 
 @api_router.get("/shared-playlist")
@@ -1383,6 +1398,7 @@ async def add_to_shared_playlist(data: PlaylistItemRequest, current_user: dict =
         "title": data.title,
         "artist": data.artist,
         "url": data.url,
+        "platform": data.platform or detect_music_platform(data.url),
         "notes": data.notes,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -1427,6 +1443,71 @@ async def generate_avatar(data: AvatarRequest, current_user: dict = Depends(get_
     )
     
     return {"avatar": image_data, "description": data.description, "style": data.style}
+
+# === Mood Boards ===
+
+class MoodBoardRequest(BaseModel):
+    theme: str
+    style: str = "collage"
+
+@api_router.get("/mood-boards")
+async def get_mood_boards(current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
+    if not pair_id:
+        return {"boards": []}
+    cursor = db.mood_boards.find({"pair_id": pair_id}, {"_id": 0}).sort("created_at", -1).limit(20)
+    boards = await cursor.to_list(length=20)
+    return {"boards": boards}
+
+@api_router.post("/mood-boards/generate")
+async def generate_mood_board(data: MoodBoardRequest, current_user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"supabase_uid": current_user["uid"]})
+    pair_id = user_doc.get("active_pair_id")
+    if not pair_id:
+        raise HTTPException(status_code=400, detail="Not paired")
+    
+    # Build context from couple data
+    gender = user_doc.get("gender", "")
+    partner_gender = user_doc.get("partner_gender", "")
+    ethnicity = user_doc.get("ethnicity", "")
+    couple_ctx = ""
+    if gender and partner_gender:
+        couple_ctx += f" A {gender} and {partner_gender} couple."
+    if ethnicity:
+        couple_ctx += f" Ethnicity: {ethnicity}."
+    
+    # Get recent chat themes for context
+    recent_msgs = await db.partner_messages.find({"pair_id": pair_id}, {"_id": 0, "text": 1}).sort("created_at", -1).limit(10).to_list(10)
+    chat_context = " ".join([m.get("text", "") for m in recent_msgs])[:300]
+    
+    # Get shared songs for vibe context
+    songs = await db.shared_playlists.find({"pair_id": pair_id}, {"_id": 0, "title": 1, "artist": 1}).limit(5).to_list(5)
+    music_ctx = ", ".join([f"{s['title']} by {s.get('artist','?')}" for s in songs]) if songs else ""
+    
+    # Generate descriptive prompt via AI text
+    board_prompt = await generate_ai_text(
+        f"Create a vivid image prompt for a couple's mood board collage. Theme: {data.theme}. Style: {data.style}.{couple_ctx} Recent chat vibes: {chat_context[:200]}. Music they share: {music_ctx}. Make it visually rich, emotional, and personal.",
+        f"moodboard-{pair_id}-{data.theme}",
+        "You are an art director creating mood board prompts. Output ONLY the image generation prompt (max 150 words). Include specific visual elements, colors, textures, and composition details. Make it feel like a personal visual collage for a couple."
+    )
+    
+    image_data = await generate_ai_image(board_prompt)
+    
+    board = {
+        "id": str(uuid.uuid4()),
+        "pair_id": pair_id,
+        "created_by": current_user["uid"],
+        "theme": data.theme,
+        "style": data.style,
+        "prompt_used": board_prompt,
+        "image_data": image_data,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.mood_boards.insert_one(board)
+    if "_id" in board:
+        del board["_id"]
+    return {"board": board}
 
 # === Relationship Milestones ===
 
