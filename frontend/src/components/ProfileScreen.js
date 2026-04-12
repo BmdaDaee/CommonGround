@@ -91,12 +91,27 @@ export default function ProfileScreen() {
         {/* Quick links */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: theme.spacing[2], marginBottom: theme.spacing[4] }}>
           <button
+            data-testid="profile-partner-settings-btn"
+            onClick={() => setView('partner-settings')}
+            style={{
+              width: '100%', padding: theme.spacing[4], borderRadius: theme.radius.none, textAlign: 'left',
+              background: 'linear-gradient(135deg, rgba(212,175,55,0.06), rgba(157,78,221,0.04))',
+              border: '1px solid rgba(212,175,55,0.15)', cursor: 'pointer',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}
+          >
+            <span style={{ fontSize: theme.typography.size.sm, color: '#D4AF37', fontWeight: 600 }}>
+              Partner & Pairing
+            </span>
+            <span style={{ color: '#D4AF37' }}>&#8250;</span>
+          </button>
+          <button
             data-testid="profile-love-language-btn"
             onClick={() => setView('love-language')}
             style={{
-              width: '100%', padding: theme.spacing[4], borderRadius: theme.radius.lg, textAlign: 'left',
-              background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : theme.colors.bg.surface,
-              border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              width: '100%', padding: theme.spacing[4], borderRadius: theme.radius.none, textAlign: 'left',
+              background: 'rgba(255,255,255,0.02)',
+              border: '1px solid #1F1F1F', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}
           >
             <span style={{ fontSize: theme.typography.size.sm, color: t.text.primary }}>
@@ -108,9 +123,9 @@ export default function ProfileScreen() {
             data-testid="profile-astrology-btn"
             onClick={() => setView('astrology')}
             style={{
-              width: '100%', padding: theme.spacing[4], borderRadius: theme.radius.lg, textAlign: 'left',
-              background: mode === 'deeplyus' ? 'rgba(255,255,255,0.05)' : theme.colors.bg.surface,
-              border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              width: '100%', padding: theme.spacing[4], borderRadius: theme.radius.none, textAlign: 'left',
+              background: 'rgba(255,255,255,0.02)',
+              border: '1px solid #1F1F1F', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}
           >
             <span style={{ fontSize: theme.typography.size.sm, color: t.text.primary }}>Astrology & Compatibility</span>

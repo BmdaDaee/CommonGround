@@ -27,6 +27,7 @@ import AvatarScreen from './components/AvatarScreen';
 import WeeklyReportScreen from './components/WeeklyReportScreen';
 import DateNightScreen from './components/DateNightScreen';
 import MoodBoardScreen from './components/MoodBoardScreen';
+import PartnerSettingsScreen from './components/PartnerSettingsScreen';
 import UsScreen, { MeScreen } from './components/SubNav';
 import BottomNav from './components/BottomNav';
 import './App.css';
@@ -66,6 +67,7 @@ function MainApp() {
     if (view === 'date-night') return <DateNightScreen />;
 
     if (view === 'mood-boards') return <MoodBoardScreen />;
+    if (view === 'partner-settings') return <PartnerSettingsScreen />;
 
     // Us tab
     if (['modules', 'trust', 'calendar', 'lists', 'portraits', 'astrology', 'playlist', 'milestones'].includes(view)) {
@@ -129,3 +131,4 @@ function App() {
 }
 
 export default App;
+
