@@ -139,6 +139,7 @@ export const api = {
   getStreak: () => apiClient.get('/streak'),
 
   // Shared Playlist
+  submitOnboardingQuiz: (quizData) => apiClient.post('/onboarding/quiz', quizData),
   getSharedPlaylist: () => apiClient.get('/shared-playlist'),
   addToSharedPlaylist: (title, artist, url, notes, platform) => apiClient.post('/shared-playlist', { title, artist, url, notes, platform }),
   removeFromSharedPlaylist: (songId) => apiClient.delete(`/shared-playlist/${songId}`),

@@ -561,6 +561,28 @@ async def leave_pair(current_user: dict = Depends(get_current_user)):
     await db.users.update_one({"supabase_uid": current_user["uid"]}, {"$set": {"active_pair_id": None}})
     return {"left": True}
 
+# === Onboarding Quiz ===
+
+@api_router.post("/onboarding/quiz")
+async def submit_onboarding_quiz(data: dict, current_user: dict = Depends(get_current_user)):
+    quiz_doc = {
+        "id": str(uuid.uuid4()),
+        "user_uid": current_user["uid"],
+        "personality_answers": data.get("personality", []),
+        "relationship_answers": data.get("relationship", []),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.onboarding_quizzes.insert_one(quiz_doc)
+    # Store quiz summary on user profile for AI context
+    await db.users.update_one(
+        {"supabase_uid": current_user["uid"]},
+        {"$set": {"quiz_data": {
+            "personality": data.get("personality", []),
+            "relationship": data.get("relationship", []),
+        }}}
+    )
+    return {"saved": True}
+
 # === Favorites ===
 
 @api_router.get("/favorites")

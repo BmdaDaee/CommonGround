@@ -3,24 +3,62 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../lib/api';
 import theme from '../lib/theme';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Camera, SpinnerGap } from '@phosphor-icons/react';
+
+const ZODIAC_OPTIONS = [
+  { key: 'aries', symbol: '\u2648', name: 'Aries', dates: 'Mar 21 - Apr 19' },
+  { key: 'taurus', symbol: '\u2649', name: 'Taurus', dates: 'Apr 20 - May 20' },
+  { key: 'gemini', symbol: '\u264A', name: 'Gemini', dates: 'May 21 - Jun 20' },
+  { key: 'cancer', symbol: '\u264B', name: 'Cancer', dates: 'Jun 21 - Jul 22' },
+  { key: 'leo', symbol: '\u264C', name: 'Leo', dates: 'Jul 23 - Aug 22' },
+  { key: 'virgo', symbol: '\u264D', name: 'Virgo', dates: 'Aug 23 - Sep 22' },
+  { key: 'libra', symbol: '\u264E', name: 'Libra', dates: 'Sep 23 - Oct 22' },
+  { key: 'scorpio', symbol: '\u264F', name: 'Scorpio', dates: 'Oct 23 - Nov 21' },
+  { key: 'sagittarius', symbol: '\u2650', name: 'Sagittarius', dates: 'Nov 22 - Dec 21' },
+  { key: 'capricorn', symbol: '\u2651', name: 'Capricorn', dates: 'Dec 22 - Jan 19' },
+  { key: 'aquarius', symbol: '\u2652', name: 'Aquarius', dates: 'Jan 20 - Feb 18' },
+  { key: 'pisces', symbol: '\u2653', name: 'Pisces', dates: 'Feb 19 - Mar 20' },
+];
 
 export default function BasicSetupScreen() {
   const { refreshProfile, signOut } = useAuth();
   const [step, setStep] = useState(0);
   const [displayName, setDisplayName] = useState('');
   const [birthDate, setBirthDate] = useState('');
+  const [zodiacSign, setZodiacSign] = useState('');
+  const [avatarPrompt, setAvatarPrompt] = useState('');
+  const [avatarStyle, setAvatarStyle] = useState('anime');
+  const [avatarData, setAvatarData] = useState(null);
+  const [generatingAvatar, setGeneratingAvatar] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const steps = [
     { title: "What should we call you?", subtitle: "Your display name" },
-    { title: "When were you born?", subtitle: "Optional \u2014 helps with astrology" },
+    { title: "When were you born?", subtitle: "For astrology insights" },
+    { title: "What's your sign?", subtitle: "Select your zodiac" },
+    { title: "Create your avatar", subtitle: "AI-generated profile picture" },
   ];
 
   const canProceed = () => {
     if (step === 0) return displayName.trim().length >= 2;
-    if (step === 1) return true;
+    if (step === 1) return true; // optional
+    if (step === 2) return zodiacSign !== '';
+    if (step === 3) return true; // avatar optional
     return false;
+  };
+
+  const handleGenerateAvatar = async () => {
+    if (!avatarPrompt.trim()) return;
+    setGeneratingAvatar(true);
+    try {
+      const { data } = await api.generateAvatar(avatarPrompt.trim(), avatarStyle);
+      setAvatarData(data.avatar);
+    } catch (err) {
+      setError('Avatar generation failed. You can skip this step.');
+    } finally {
+      setGeneratingAvatar(false);
+    }
   };
 
   const handleNext = async () => {
@@ -31,6 +69,7 @@ export default function BasicSetupScreen() {
       await api.updateProfile({
         display_name: displayName.trim(),
         birth_date: birthDate || null,
+        zodiac_sign: zodiacSign,
         basic_setup_complete: true,
       });
       await refreshProfile();
@@ -42,6 +81,13 @@ export default function BasicSetupScreen() {
   };
 
   const handleBack = () => { if (step > 0) setStep(step - 1); };
+
+  const AVATAR_STYLES = [
+    { key: 'anime', label: 'Anime' },
+    { key: 'watercolor', label: 'Watercolor' },
+    { key: 'cartoon', label: 'Cartoon' },
+    { key: 'realistic', label: 'Realistic' },
+  ];
 
   return (
     <div style={{
@@ -93,12 +139,10 @@ export default function BasicSetupScreen() {
           }}>{error}</div>
         )}
 
+        {/* Step 0: Name */}
         {step === 0 && (
-          <input
-            data-testid="setup-name-input"
-            type="text" value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="Your name" autoFocus maxLength={30}
+          <input data-testid="setup-name-input" type="text" value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)} placeholder="Your name" autoFocus maxLength={30}
             style={{
               width: '100%', padding: theme.spacing[4], borderRadius: theme.radius.none,
               border: `2px solid ${displayName.trim().length >= 2 ? '#D4AF37' : '#1F1F1F'}`,
@@ -109,11 +153,10 @@ export default function BasicSetupScreen() {
           />
         )}
 
+        {/* Step 1: DOB */}
         {step === 1 && (
           <div style={{ textAlign: 'center' }}>
-            <input
-              data-testid="setup-birthdate-input"
-              type="date" value={birthDate}
+            <input data-testid="setup-birthdate-input" type="date" value={birthDate}
               onChange={(e) => setBirthDate(e.target.value)}
               style={{
                 width: '100%', padding: theme.spacing[4], borderRadius: theme.radius.none,
@@ -124,11 +167,82 @@ export default function BasicSetupScreen() {
               }}
             />
             <p style={{ marginTop: theme.spacing[3], fontSize: theme.typography.size.sm, color: '#555555' }}>
-              This is optional — you can skip this step
+              Optional — you can skip
             </p>
           </div>
         )}
 
+        {/* Step 2: Zodiac */}
+        {step === 2 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: theme.spacing[2] }}>
+            {ZODIAC_OPTIONS.map((z) => (
+              <button key={z.key} data-testid={`zodiac-${z.key}`} onClick={() => setZodiacSign(z.key)}
+                style={{
+                  padding: theme.spacing[3], borderRadius: theme.radius.none,
+                  border: zodiacSign === z.key ? '2px solid #D4AF37' : '1px solid #1F1F1F',
+                  background: zodiacSign === z.key ? 'rgba(212,175,55,0.08)' : 'transparent',
+                  cursor: 'pointer', textAlign: 'center',
+                }}>
+                <span style={{ fontSize: '24px', display: 'block' }}>{z.symbol}</span>
+                <span style={{ fontSize: theme.typography.size.xs, fontWeight: 600, color: zodiacSign === z.key ? '#D4AF37' : '#FFF', display: 'block', marginTop: '2px' }}>{z.name}</span>
+                <span style={{ fontSize: '9px', color: '#555' }}>{z.dates}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Step 3: Avatar */}
+        {step === 3 && (
+          <div>
+            {avatarData && (
+              <div style={{ textAlign: 'center', marginBottom: theme.spacing[4] }}>
+                <img src={`data:image/png;base64,${avatarData}`} alt="Avatar"
+                  style={{ width: '120px', height: '120px', borderRadius: '50%', border: '3px solid #D4AF37', objectFit: 'cover' }} />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: theme.spacing[2], marginBottom: theme.spacing[3], flexWrap: 'wrap' }}>
+              {AVATAR_STYLES.map((s) => (
+                <button key={s.key} onClick={() => setAvatarStyle(s.key)} style={{
+                  padding: `${theme.spacing[1]} ${theme.spacing[3]}`, borderRadius: theme.radius.none,
+                  border: avatarStyle === s.key ? '1px solid #D4AF37' : '1px solid #1F1F1F',
+                  background: avatarStyle === s.key ? 'rgba(212,175,55,0.08)' : 'transparent',
+                  color: avatarStyle === s.key ? '#D4AF37' : '#9CA3AF',
+                  fontSize: theme.typography.size.xs, fontWeight: 600, cursor: 'pointer',
+                }}>{s.label}</button>
+              ))}
+            </div>
+
+            <input data-testid="avatar-prompt-input" type="text" value={avatarPrompt}
+              onChange={(e) => setAvatarPrompt(e.target.value)}
+              placeholder="Describe yourself (e.g. curly hair, glasses, warm smile)"
+              style={{
+                width: '100%', padding: theme.spacing[3], borderRadius: theme.radius.none,
+                border: '1px solid #1F1F1F', background: 'rgba(255,255,255,0.03)',
+                color: '#FFF', fontSize: theme.typography.size.sm, outline: 'none', boxSizing: 'border-box',
+                marginBottom: theme.spacing[3],
+              }}
+            />
+            <button data-testid="generate-avatar-btn" onClick={handleGenerateAvatar}
+              disabled={!avatarPrompt.trim() || generatingAvatar}
+              style={{
+                width: '100%', padding: theme.spacing[3], borderRadius: theme.radius.none,
+                border: 'none',
+                background: generatingAvatar ? '#1F1F1F' : (avatarPrompt.trim() ? '#9D4EDD' : '#1F1F1F'),
+                color: avatarPrompt.trim() && !generatingAvatar ? '#FFF' : '#555',
+                fontSize: theme.typography.size.sm, fontWeight: 700, cursor: generatingAvatar ? 'wait' : 'pointer',
+                fontFamily: theme.typography.fontFamily.heading,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: theme.spacing[2],
+              }}>
+              {generatingAvatar ? <><SpinnerGap size={16} className="animate-glow" /> Generating...</> : <><Camera size={16} /> Generate Avatar</>}
+            </button>
+            <p style={{ marginTop: theme.spacing[2], fontSize: theme.typography.size.xs, color: '#555', textAlign: 'center' }}>
+              You can skip this and create one later
+            </p>
+          </div>
+        )}
+
+        {/* Navigation */}
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           marginTop: theme.spacing[6], gap: theme.spacing[3],
@@ -140,8 +254,7 @@ export default function BasicSetupScreen() {
               color: '#9CA3AF', fontSize: theme.typography.size.md, cursor: 'pointer',
             }}>Back</button>
           ) : <div />}
-          <button
-            data-testid="setup-next-btn" onClick={handleNext}
+          <button data-testid="setup-next-btn" onClick={handleNext}
             disabled={!canProceed() || loading}
             style={{
               padding: `${theme.spacing[3]} ${theme.spacing[6]}`, borderRadius: theme.radius.none,
@@ -153,7 +266,7 @@ export default function BasicSetupScreen() {
               opacity: loading ? 0.7 : 1,
               fontFamily: theme.typography.fontFamily.heading, letterSpacing: '0.05em',
             }}
-          >{loading ? 'Saving...' : (step === steps.length - 1 ? 'CONTINUE' : 'NEXT')}</button>
+          >{loading ? 'Saving...' : (step === steps.length - 1 ? 'CONTINUE TO PAIRING' : 'NEXT')}</button>
         </div>
       </div>
 
